@@ -1,8 +1,8 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 
-let scene, camera, renderer, controls, gridHelper, groundPlane;
-let raycaster;
+let scene, camera, renderer, controls, localGridHelper, groundPlane;
+let raycaster, mouse;
 
 function generateTerrain(widthM, depthM) {
     // Cleanup old terrain
@@ -32,67 +32,19 @@ function generateTerrain(widthM, depthM) {
     scene.fog.far = maxDim * 1.5;
 }
 
-function createPolarGridHelper(radius, circles, radials, color = 0xffffff) {
-    const group = new THREE.Group();
-    const material = new THREE.LineBasicMaterial({ color, transparent: true, opacity: 0.35, depthTest: false });
-
-    // Circles
-    const circleDivisions = 128;
-    for (let i = 1; i <= circles; i++) {
-        const circleRadius = (radius / circles) * i;
-        const points = [];
-        for (let j = 0; j <= circleDivisions; j++) {
-            const angle = (j / circleDivisions) * Math.PI * 2;
-            points.push(new THREE.Vector3(Math.cos(angle) * circleRadius, 0, Math.sin(angle) * circleRadius));
-        }
-        const geometry = new THREE.BufferGeometry().setFromPoints(points);
-        const circle = new THREE.Line(geometry, material);
-        group.add(circle);
+function updateLocalGrid(cellSizeM, divisions = 20) {
+    if (localGridHelper) {
+        scene.remove(localGridHelper);
+        localGridHelper.geometry.dispose();
+        localGridHelper.material.dispose();
     }
 
-    // Radials
-    for (let i = 0; i < radials; i++) {
-        const angle = (i / radials) * Math.PI * 2;
-        const points = [
-            new THREE.Vector3(0, 0, 0),
-            new THREE.Vector3(Math.cos(angle) * radius, 0, Math.sin(angle) * radius)
-        ];
-        const geometry = new THREE.BufferGeometry().setFromPoints(points);
-        const line = new THREE.Line(geometry, material);
-        group.add(line);
-    }
-
-    return group;
-}
-
-function updateGrid() {
-    if (gridHelper) {
-        scene.remove(gridHelper);
-        gridHelper.traverse(child => {
-            if (child.isLine) {
-                child.geometry.dispose();
-                // material is shared, dispose it only once
-                if(child.material) child.material.dispose();
-            }
-        });
-    }
-
-    const radius = parseFloat(document.getElementById('grid-radius').value);
-    const spacing = parseFloat(document.getElementById('grid-cell-size').value);
-
-    if (isNaN(radius) || isNaN(spacing) || radius <= 0 || spacing <= 0) {
-        return;
-    }
-
-    const circles = Math.max(1, Math.floor(radius / spacing));
-    const radials = 16; 
-
-    gridHelper = createPolarGridHelper(radius, circles, radials, 0xffffff);
-    gridHelper.position.y = 1; // Position slightly above the ground plane to ensure visibility
-    gridHelper.visible = false; // Initially hidden
-    gridHelper.renderOrder = 1; // Render on top of the ground plane
+    const size = cellSizeM * divisions;
+    localGridHelper = new THREE.GridHelper(size, divisions, 0xffffff, 0xffffff);
+    localGridHelper.position.y = 1; // Position slightly above the ground plane to ensure visibility
+    localGridHelper.visible = false; // Initially hidden
    
-    scene.add(gridHelper);
+    scene.add(localGridHelper);
 }
 
 function init() {
@@ -119,8 +71,9 @@ function init() {
     controls.maxDistance = 400000;
     controls.maxPolarAngle = Math.PI / 2; // Prevent camera from going under the ground
 
-    // Raycaster
+    // Raycaster and mouse
     raycaster = new THREE.Raycaster();
+    mouse = new THREE.Vector2();
 
     // Lighting
     const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
@@ -138,7 +91,6 @@ function init() {
     const adminMenu = document.getElementById('admin-menu');
     const toggleGridCheckbox = document.getElementById('toggle-grid');
     const generateBtn = document.getElementById('generate-terrain');
-    const gridRadiusInput = document.getElementById('grid-radius');
     const gridCellSizeInput = document.getElementById('grid-cell-size');
 
     window.addEventListener('keydown', (event) => {
@@ -149,12 +101,13 @@ function init() {
         }
     });
 
-    if (gridRadiusInput) {
-        gridRadiusInput.addEventListener('change', updateGrid);
-    }
-    
     if (gridCellSizeInput) {
-        gridCellSizeInput.addEventListener('change', updateGrid);
+        gridCellSizeInput.addEventListener('change', () => {
+            const cellSize = parseFloat(gridCellSizeInput.value);
+            if (!isNaN(cellSize) && cellSize > 0) {
+                updateLocalGrid(cellSize);
+            }
+        });
     }
 
     if (toggleGridCheckbox) {
@@ -167,10 +120,11 @@ function init() {
         generateBtn.addEventListener('click', () => {
             const width = parseFloat(document.getElementById('terrain-width').value);
             const depth = parseFloat(document.getElementById('terrain-depth').value);
+            const cellSize = parseFloat(document.getElementById('grid-cell-size').value);
             const minZoom = parseFloat(document.getElementById('min-zoom').value);
             const maxZoom = parseFloat(document.getElementById('max-zoom').value);
 
-            if (isNaN(width) || isNaN(depth) || width <= 0 || depth <= 0 || isNaN(minZoom) || isNaN(maxZoom) || minZoom <= 0 || maxZoom <= 0 || minZoom >= maxZoom) {
+            if (isNaN(width) || isNaN(depth) || isNaN(cellSize) || width <= 0 || depth <= 0 || cellSize <= 0 || isNaN(minZoom) || isNaN(maxZoom) || minZoom <= 0 || maxZoom <= 0 || minZoom >= maxZoom) {
                 alert("Please enter valid positive numbers for terrain dimensions and zoom. Min zoom must be a positive number and less than max zoom.");
                 return;
             }
@@ -182,7 +136,7 @@ function init() {
             const depthM = depth * 1000;
 
             generateTerrain(widthM, depthM);
-            updateGrid();
+            updateLocalGrid(cellSize);
 
             controls.minDistance = minZoom;
             controls.maxDistance = maxZoom;
@@ -206,7 +160,6 @@ function init() {
                 terrainDepth: document.getElementById('terrain-depth').value,
                 minZoom: document.getElementById('min-zoom').value,
                 maxZoom: document.getElementById('max-zoom').value,
-                gridRadius: document.getElementById('grid-radius').value,
                 gridCellSize: document.getElementById('grid-cell-size').value,
                 showGrid: document.getElementById('toggle-grid').checked,
                 cameraPosition: camera.position.toArray(),
@@ -250,7 +203,6 @@ function init() {
                     document.getElementById('terrain-depth').value = settings.terrainDepth ?? '256';
                     document.getElementById('min-zoom').value = settings.minZoom ?? '10';
                     document.getElementById('max-zoom').value = settings.maxZoom ?? '400000';
-                    document.getElementById('grid-radius').value = settings.gridRadius ?? '10000';
                     document.getElementById('grid-cell-size').value = settings.gridCellSize ?? '1000';
                     document.getElementById('toggle-grid').checked = settings.showGrid ?? true;
 
@@ -300,34 +252,21 @@ function onWindowResize() {
 function animate() {
     requestAnimationFrame(animate);
 
-    // Update grid position based on camera view
+    // Update local grid position based on camera focus point
     const showGrid = document.getElementById('toggle-grid').checked;
-    if (showGrid && groundPlane && gridHelper) {
-        raycaster.setFromCamera({ x: 0, y: 0 }, camera); // Ray from center of screen
-        const intersects = raycaster.intersectObject(groundPlane);
+    if (showGrid && groundPlane && localGridHelper) {
+        localGridHelper.visible = true;
+        const centerPoint = controls.target;
+        const cellSize = parseFloat(document.getElementById('grid-cell-size').value);
         
-        if (intersects.length > 0) {
-            gridHelper.visible = true;
-            const intersectPoint = intersects[0].point;
-            
-            gridHelper.position.x = intersectPoint.x;
-            gridHelper.position.z = intersectPoint.z;
-            gridHelper.position.y = intersectPoint.y + 1;
-
-            // Scale grid based on camera distance from its target point on the ground
-            const distance = camera.position.distanceTo(intersectPoint);
-            
-            // Adjust scale factor to make grid appear larger when further away
-            const baseDistance = 20000; // An arbitrary distance for baseline scale
-            let scale = distance / baseDistance;
-            scale = Math.max(0.1, Math.min(scale, 10.0)); // Clamp scale
-            gridHelper.scale.set(scale, scale, scale);
-
-        } else {
-            gridHelper.visible = false;
+        if (cellSize > 0) {
+            // Snap the grid center to the nearest grid line intersection
+            localGridHelper.position.x = Math.round(centerPoint.x / cellSize) * cellSize;
+            localGridHelper.position.z = Math.round(centerPoint.z / cellSize) * cellSize;
         }
-    } else if (gridHelper) {
-        gridHelper.visible = false;
+
+    } else if (localGridHelper) {
+        localGridHelper.visible = false;
     }
 
     controls.update();
