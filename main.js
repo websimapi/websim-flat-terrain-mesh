@@ -59,14 +59,20 @@ function updateSunPosition() {
     sunLight.intensity = sunIntensity * dayIntensity;
     sunLight.color.setHex(sunColor);
     
-    // Update ambient light
-    const ambientIntensity = Math.max(0.1, dayIntensity * 0.4);
-    ambientLight.intensity = ambientIntensity;
-    ambientLight.color.setHex(skyColor);
+    // Update ambient light (check if it exists first)
+    if (ambientLight) {
+        const ambientIntensity = Math.max(0.1, dayIntensity * 0.4);
+        ambientLight.intensity = ambientIntensity;
+        ambientLight.color.setHex(skyColor);
+    }
     
-    // Update sky color
-    scene.background.setHex(skyColor);
-    scene.fog.color.setHex(skyColor);
+    // Update sky color (check if scene and fog exist first)
+    if (scene) {
+        scene.background.setHex(skyColor);
+        if (scene.fog) {
+            scene.fog.color.setHex(skyColor);
+        }
+    }
 }
 
 function getSunColor(time) {
