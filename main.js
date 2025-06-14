@@ -1,23 +1,16 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 
-let scene, camera, renderer, controls, gridHelper, groundPlane;
+let scene, camera, renderer, controls, localGridHelper, groundPlane;
+let raycaster, mouse;
 
-function generateTerrain(widthKm, depthKm, cellSizeM) {
+function generateTerrain(widthM, depthM) {
     // Cleanup old terrain
     if (groundPlane) {
         scene.remove(groundPlane);
         groundPlane.geometry.dispose();
         groundPlane.material.dispose();
     }
-    if (gridHelper) {
-        scene.remove(gridHelper);
-        gridHelper.geometry.dispose();
-        gridHelper.material.dispose();
-    }
-
-    const widthM = widthKm * 1000;
-    const depthM = depthKm * 1000;
 
     // Green ground plane
     const groundGeometry = new THREE.PlaneGeometry(widthM, depthM);
@@ -28,20 +21,6 @@ function generateTerrain(widthKm, depthKm, cellSizeM) {
     groundPlane.rotation.x = -Math.PI / 2;
     scene.add(groundPlane);
 
-    // Grid to visualize the terrain cells
-    const maxSize = Math.max(widthM, depthM);
-    const divisions = Math.round(maxSize / cellSizeM);
-
-    gridHelper = new THREE.GridHelper(maxSize, divisions, 0xffffff, 0xffffff);
-    gridHelper.position.y = 1; // Position slightly above the ground plane to ensure visibility
-    
-    const toggleGridCheckbox = document.getElementById('toggle-grid');
-    if (toggleGridCheckbox) {
-         gridHelper.visible = toggleGridCheckbox.checked;
-    }
-   
-    scene.add(gridHelper);
-
     // Update camera, controls, fog based on new terrain size
     const maxDim = Math.max(widthM, depthM);
     camera.far = maxDim * 2;
@@ -51,6 +30,21 @@ function generateTerrain(widthKm, depthKm, cellSizeM) {
     
     scene.fog.near = maxDim * 0.1;
     scene.fog.far = maxDim * 1.5;
+}
+
+function updateLocalGrid(cellSizeM, divisions = 20) {
+    if (localGridHelper) {
+        scene.remove(localGridHelper);
+        localGridHelper.geometry.dispose();
+        localGridHelper.material.dispose();
+    }
+
+    const size = cellSizeM * divisions;
+    localGridHelper = new THREE.GridHelper(size, divisions, 0xffffff, 0xffffff);
+    localGridHelper.position.y = 1; // Position slightly above the ground plane to ensure visibility
+    localGridHelper.visible = false; // Initially hidden
+   
+    scene.add(localGridHelper);
 }
 
 function init() {
@@ -77,6 +71,10 @@ function init() {
     controls.maxDistance = 150000;
     controls.maxPolarAngle = Math.PI / 2.1; // Prevent camera from going under the ground
 
+    // Raycaster and mouse
+    raycaster = new THREE.Raycaster();
+    mouse = new THREE.Vector2();
+
     // Lighting
     const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
     scene.add(ambientLight);
@@ -87,6 +85,7 @@ function init() {
 
     // Event Listeners
     window.addEventListener('resize', onWindowResize, false);
+    window.addEventListener('mousemove', onMouseMove, false);
 
     // Debug Menu
     const debugMenu = document.getElementById('debug-menu');
@@ -103,9 +102,7 @@ function init() {
 
     if (toggleGridCheckbox) {
         toggleGridCheckbox.addEventListener('change', (event) => {
-            if (gridHelper) {
-                gridHelper.visible = event.target.checked;
-            }
+            // Visibility is now handled in the animate loop based on mouse position and this checkbox.
         });
     }
 
@@ -120,9 +117,13 @@ function init() {
                 return;
             }
 
-            generateTerrain(width, depth, cellSize);
+            const widthM = width * 1000;
+            const depthM = depth * 1000;
+
+            generateTerrain(widthM, depthM);
+            updateLocalGrid(cellSize);
             
-            const maxDimM = Math.max(width * 1000, depth * 1000);
+            const maxDimM = Math.max(widthM, depthM);
             camera.position.set(0, maxDimM / 8, maxDimM / 4);
             controls.target.set(0, 0, 0);
             controls.update();
@@ -136,6 +137,13 @@ function init() {
     animate();
 }
 
+function onMouseMove(event) {
+    // calculate mouse position in normalized device coordinates
+    // (-1 to +1) for both components
+    mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
+    mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
+}
+
 function onWindowResize() {
     camera.aspect = window.innerWidth / window.innerHeight;
     camera.updateProjectionMatrix();
@@ -144,6 +152,28 @@ function onWindowResize() {
 
 function animate() {
     requestAnimationFrame(animate);
+
+    // Update local grid position based on mouse
+    const showGrid = document.getElementById('toggle-grid').checked;
+    if (showGrid && groundPlane && localGridHelper) {
+        raycaster.setFromCamera(mouse, camera);
+        const intersects = raycaster.intersectObject(groundPlane);
+        
+        if (intersects.length > 0) {
+            localGridHelper.visible = true;
+            const intersectPoint = intersects[0].point;
+            const cellSize = parseFloat(document.getElementById('grid-cell-size').value);
+            
+            // Snap the grid center to the nearest grid line intersection
+            localGridHelper.position.x = Math.round(intersectPoint.x / cellSize) * cellSize;
+            localGridHelper.position.z = Math.round(intersectPoint.z / cellSize) * cellSize;
+        } else {
+            localGridHelper.visible = false;
+        }
+    } else if (localGridHelper) {
+        localGridHelper.visible = false;
+    }
+
     controls.update();
     renderer.render(scene, camera);
 }
