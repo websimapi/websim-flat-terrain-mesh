@@ -69,7 +69,7 @@ function init() {
     controls.screenSpacePanning = false;
     controls.minDistance = 10;
     controls.maxDistance = 400000;
-    controls.maxPolarAngle = Math.PI / 2.1; // Prevent camera from going under the ground
+    controls.maxPolarAngle = Math.PI / 2; // Prevent camera from going under the ground
 
     // Raycaster and mouse
     raycaster = new THREE.Raycaster();
@@ -128,6 +128,9 @@ function init() {
                 alert("Please enter valid positive numbers for terrain dimensions and zoom. Min zoom must be a positive number and less than max zoom.");
                 return;
             }
+
+            camera.near = Math.max(0.1, minZoom * 0.1);
+            camera.updateProjectionMatrix();
 
             const widthM = width * 1000;
             const depthM = depth * 1000;
