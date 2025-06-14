@@ -17,7 +17,19 @@
 <body>
     <div id="debug-menu" class="hidden">
         <h2>Debug Menu</h2>
-        <p>Flat Terrain (256km x 256km) with 1km x 1km grid</p>
+        <div class="control-group">
+            <label for="terrain-width">Terrain Width (km)</label>
+            <input type="number" id="terrain-width" value="256" step="1">
+        </div>
+        <div class="control-group">
+            <label for="terrain-depth">Terrain Depth (km)</label>
+            <input type="number" id="terrain-depth" value="256" step="1">
+        </div>
+        <div class="control-group">
+            <label for="grid-cell-size">Grid Cell Size (km)</label>
+            <input type="number" id="grid-cell-size" value="1" step="0.1">
+        </div>
+        <button id="generate-terrain">Generate Terrain</button>
         <div class="control-group">
             <label for="toggle-grid">Show Grid</label>
             <input type="checkbox" id="toggle-grid" checked>
