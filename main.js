@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 
-let scene, camera, renderer, controls;
+let scene, camera, renderer, controls, gridHelper;
 
 function init() {
     // Scene
@@ -49,12 +49,32 @@ function init() {
     scene.add(groundPlane);
 
     // Grid to visualize the terrain cells
-    const gridHelper = new THREE.GridHelper(terrainSize, divisions, 0xffffff, 0xffffff);
+    gridHelper = new THREE.GridHelper(terrainSize, divisions, 0xffffff, 0xffffff);
     gridHelper.position.y = 1; // Position slightly above the ground plane to ensure visibility
     scene.add(gridHelper);
 
     // Event Listeners
     window.addEventListener('resize', onWindowResize, false);
+
+    // Debug Menu
+    const debugMenu = document.getElementById('debug-menu');
+    const toggleGridCheckbox = document.getElementById('toggle-grid');
+
+    window.addEventListener('keydown', (event) => {
+        // Use 'Backquote' which is the key for ` and ~ on US keyboards.
+        if (event.code === 'Backquote') {
+            event.preventDefault();
+            debugMenu.classList.toggle('hidden');
+        }
+    });
+
+    if (toggleGridCheckbox) {
+        toggleGridCheckbox.addEventListener('change', (event) => {
+            if (gridHelper) {
+                gridHelper.visible = event.target.checked;
+            }
+        });
+    }
 
     // Start animation loop
     animate();
