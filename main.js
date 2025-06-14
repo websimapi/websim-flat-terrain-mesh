@@ -26,7 +26,7 @@ function generateTerrain(widthM, depthM) {
     camera.far = maxDim * 2;
     camera.updateProjectionMatrix();
 
-    controls.maxDistance = maxDim * 1.5;
+    // controls.maxDistance = maxDim * 1.5; // Now user-controlled via debug menu
     
     scene.fog.near = maxDim * 0.1;
     scene.fog.far = maxDim * 1.5;
@@ -67,8 +67,8 @@ function init() {
     controls.enableDamping = true;
     controls.dampingFactor = 0.05;
     controls.screenSpacePanning = false;
-    controls.minDistance = 1000;
-    controls.maxDistance = 150000;
+    controls.minDistance = 10;
+    controls.maxDistance = 400000;
     controls.maxPolarAngle = Math.PI / 2.1; // Prevent camera from going under the ground
 
     // Raycaster and mouse
@@ -91,6 +91,7 @@ function init() {
     const debugMenu = document.getElementById('debug-menu');
     const toggleGridCheckbox = document.getElementById('toggle-grid');
     const generateBtn = document.getElementById('generate-terrain');
+    const gridCellSizeInput = document.getElementById('grid-cell-size');
 
     window.addEventListener('keydown', (event) => {
         // Use 'Backquote' which is the key for ` and ~ on US keyboards.
@@ -99,6 +100,15 @@ function init() {
             debugMenu.classList.toggle('hidden');
         }
     });
+
+    if (gridCellSizeInput) {
+        gridCellSizeInput.addEventListener('change', () => {
+            const cellSize = parseFloat(gridCellSizeInput.value);
+            if (!isNaN(cellSize) && cellSize > 0) {
+                updateLocalGrid(cellSize);
+            }
+        });
+    }
 
     if (toggleGridCheckbox) {
         toggleGridCheckbox.addEventListener('change', (event) => {
@@ -111,9 +121,11 @@ function init() {
             const width = parseFloat(document.getElementById('terrain-width').value);
             const depth = parseFloat(document.getElementById('terrain-depth').value);
             const cellSize = parseFloat(document.getElementById('grid-cell-size').value);
+            const minZoom = parseFloat(document.getElementById('min-zoom').value);
+            const maxZoom = parseFloat(document.getElementById('max-zoom').value);
 
-            if (isNaN(width) || isNaN(depth) || isNaN(cellSize) || width <= 0 || depth <= 0 || cellSize <= 0) {
-                alert("Please enter valid positive numbers for terrain dimensions.");
+            if (isNaN(width) || isNaN(depth) || isNaN(cellSize) || width <= 0 || depth <= 0 || cellSize <= 0 || isNaN(minZoom) || isNaN(maxZoom) || minZoom <= 0 || maxZoom <= 0 || minZoom >= maxZoom) {
+                alert("Please enter valid positive numbers for terrain dimensions and zoom. Min zoom must be a positive number and less than max zoom.");
                 return;
             }
 
@@ -122,6 +134,9 @@ function init() {
 
             generateTerrain(widthM, depthM);
             updateLocalGrid(cellSize);
+
+            controls.minDistance = minZoom;
+            controls.maxDistance = maxZoom;
             
             const maxDimM = Math.max(widthM, depthM);
             camera.position.set(0, maxDimM / 8, maxDimM / 4);

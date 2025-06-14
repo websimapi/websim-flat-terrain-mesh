@@ -17,6 +17,8 @@
 <body>
     <div id="debug-menu" class="hidden">
         <h2>Debug Menu</h2>
+
+        <h3>Terrain</h3>
         <div class="control-group">
             <label for="terrain-width">Terrain Width (km)</label>
             <input type="number" id="terrain-width" value="256" step="1">
@@ -25,11 +27,24 @@
             <label for="terrain-depth">Terrain Depth (km)</label>
             <input type="number" id="terrain-depth" value="256" step="1">
         </div>
+
+        <h3>Camera</h3>
+        <div class="control-group">
+            <label for="min-zoom">Min Zoom (m)</label>
+            <input type="number" id="min-zoom" value="10" step="1">
+        </div>
+        <div class="control-group">
+            <label for="max-zoom">Max Zoom (m)</label>
+            <input type="number" id="max-zoom" value="400000" step="1000">
+        </div>
+
+        <button id="generate-terrain">Apply & Regenerate Terrain</button>
+
+        <h3>Grid</h3>
         <div class="control-group">
             <label for="grid-cell-size">Grid Cell Size (m)</label>
             <input type="number" id="grid-cell-size" value="1000" step="100">
         </div>
-        <button id="generate-terrain">Generate Terrain</button>
         <div class="control-group">
             <label for="toggle-grid">Show Grid</label>
             <input type="checkbox" id="toggle-grid" checked>
