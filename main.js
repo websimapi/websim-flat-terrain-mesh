@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { Sky } from 'three/addons/objects/Sky.js';
+import { Lensflare, LensflareElement } from 'three/addons/objects/Lensflare.js';
 
 let scene, camera, renderer, controls, localGridHelper, groundPlane;
 let raycaster, mouse;
@@ -135,6 +136,19 @@ function init() {
     scene.add(sunLight);
     scene.add(sunLight.target);
 
+    // Lensflare
+    const textureLoader = new THREE.TextureLoader();
+    const textureFlare0 = textureLoader.load('lensflare0.png');
+    const textureFlare3 = textureLoader.load('lensflare3.png');
+
+    const lensflare = new Lensflare();
+    lensflare.addElement(new LensflareElement(textureFlare0, 512, 0, sunLight.color));
+    lensflare.addElement(new LensflareElement(textureFlare3, 60, 0.6));
+    lensflare.addElement(new LensflareElement(textureFlare3, 70, 0.7));
+    lensflare.addElement(new LensflareElement(textureFlare3, 120, 0.9));
+    lensflare.addElement(new LensflareElement(textureFlare3, 70, 1.0));
+    sunLight.add(lensflare);
+
     // Event Listeners
     window.addEventListener('resize', onWindowResize, false);
     window.addEventListener('mousemove', onMouseMove, false);
@@ -149,6 +163,15 @@ function init() {
     const animateSunCheckbox = document.getElementById('animate-sun');
     const toggleShadowsCheckbox = document.getElementById('toggle-shadows');
     const shadowQualitySelect = document.getElementById('shadow-quality');
+
+    const turbiditySlider = document.getElementById('turbidity');
+    const turbidityValue = document.getElementById('turbidity-value');
+    const rayleighSlider = document.getElementById('rayleigh');
+    const rayleighValue = document.getElementById('rayleigh-value');
+    const mieCoefficientSlider = document.getElementById('mie-coefficient');
+    const mieCoefficientValue = document.getElementById('mie-coefficient-value');
+    const mieDirectionalGSlider = document.getElementById('mie-directional-g');
+    const mieDirectionalGValue = document.getElementById('mie-directional-g-value');
 
     window.addEventListener('keydown', (event) => {
         // Use 'Backquote' which is the key for ` and ~ on US keyboards.
@@ -183,6 +206,34 @@ function init() {
         sunLight.shadow.mapSize.width = quality;
         sunLight.shadow.mapSize.height = quality;
         // Re-rendering is handled in the animate loop
+    });
+
+    turbiditySlider.addEventListener('input', (event) => {
+        const value = parseFloat(event.target.value);
+        effectController.turbidity = value;
+        turbidityValue.textContent = value.toFixed(1);
+        updateSunAndShadows();
+    });
+
+    rayleighSlider.addEventListener('input', (event) => {
+        const value = parseFloat(event.target.value);
+        effectController.rayleigh = value;
+        rayleighValue.textContent = value.toFixed(2);
+        updateSunAndShadows();
+    });
+
+    mieCoefficientSlider.addEventListener('input', (event) => {
+        const value = parseFloat(event.target.value);
+        effectController.mieCoefficient = value;
+        mieCoefficientValue.textContent = value.toFixed(3);
+        updateSunAndShadows();
+    });
+
+    mieDirectionalGSlider.addEventListener('input', (event) => {
+        const value = parseFloat(event.target.value);
+        effectController.mieDirectionalG = value;
+        mieDirectionalGValue.textContent = value.toFixed(2);
+        updateSunAndShadows();
     });
 
     if (gridCellSizeInput) {
@@ -251,7 +302,11 @@ function init() {
                 timeOfDay: effectController.timeOfDay,
                 animateSun: effectController.animateSun,
                 shadowsEnabled: effectController.shadowsEnabled,
-                shadowQuality: document.getElementById('shadow-quality').value
+                shadowQuality: document.getElementById('shadow-quality').value,
+                turbidity: effectController.turbidity,
+                rayleigh: effectController.rayleigh,
+                mieCoefficient: effectController.mieCoefficient,
+                mieDirectionalG: effectController.mieDirectionalG
             };
 
             const jsonString = JSON.stringify(settings, null, 2);
@@ -299,11 +354,21 @@ function init() {
                     document.getElementById('toggle-shadows').checked = settings.shadowsEnabled ?? true;
                     document.getElementById('shadow-quality').value = settings.shadowQuality ?? '2048';
 
+                    document.getElementById('turbidity').value = settings.turbidity ?? 10;
+                    document.getElementById('rayleigh').value = settings.rayleigh ?? 3;
+                    document.getElementById('mie-coefficient').value = settings.mieCoefficient ?? 0.005;
+                    document.getElementById('mie-directional-g').value = settings.mieDirectionalG ?? 0.7;
+
                     // Manually trigger change events to apply settings
                     document.getElementById('time-of-day').dispatchEvent(new Event('input'));
                     document.getElementById('animate-sun').dispatchEvent(new Event('change'));
                     document.getElementById('toggle-shadows').dispatchEvent(new Event('change'));
                     document.getElementById('shadow-quality').dispatchEvent(new Event('change'));
+
+                    document.getElementById('turbidity').dispatchEvent(new Event('input'));
+                    document.getElementById('rayleigh').dispatchEvent(new Event('input'));
+                    document.getElementById('mie-coefficient').dispatchEvent(new Event('input'));
+                    document.getElementById('mie-directional-g').dispatchEvent(new Event('input'));
 
                     // Trigger regeneration with new settings
                     generateBtn.click();

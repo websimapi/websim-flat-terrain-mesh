@@ -90,9 +90,13 @@ canvas {
     margin: 0 10px;
 }
 
-#time-of-day-value {
-    width: 50px;
+.control-value {
+    min-width: 50px;
     text-align: right;
+    font-variant-numeric: tabular-nums;
+}
+
+#time-of-day-value {
     font-variant-numeric: tabular-nums;
 }
 
