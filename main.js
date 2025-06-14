@@ -1,8 +1,20 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { Sky } from 'three/addons/objects/Sky.js';
 
 let scene, camera, renderer, controls, localGridHelper, groundPlane;
 let raycaster, mouse;
+let sky, sun, sunLight;
+
+const effectController = {
+    turbidity: 10,
+    rayleigh: 3,
+    mieCoefficient: 0.005,
+    mieDirectionalG: 0.7,
+    timeOfDay: 12, // 0-24
+    animateSun: true,
+    shadowsEnabled: true,
+};
 
 function generateTerrain(widthM, depthM) {
     // Cleanup old terrain
@@ -19,6 +31,7 @@ function generateTerrain(widthM, depthM) {
     });
     groundPlane = new THREE.Mesh(groundGeometry, groundMaterial);
     groundPlane.rotation.x = -Math.PI / 2;
+    groundPlane.receiveShadow = true;
     scene.add(groundPlane);
 
     // Update camera, controls, fog based on new terrain size
@@ -26,10 +39,14 @@ function generateTerrain(widthM, depthM) {
     camera.far = maxDim * 2;
     camera.updateProjectionMatrix();
 
-    // controls.maxDistance = maxDim * 1.5; // Now user-controlled via debug menu
-    
-    scene.fog.near = maxDim * 0.1;
-    scene.fog.far = maxDim * 1.5;
+    // Update shadow camera frustum
+    if (sunLight) {
+        sunLight.shadow.camera.left = -widthM / 2;
+        sunLight.shadow.camera.right = widthM / 2;
+        sunLight.shadow.camera.top = depthM / 2;
+        sunLight.shadow.camera.bottom = -depthM / 2;
+        sunLight.shadow.camera.updateProjectionMatrix();
+    }
 }
 
 function updateLocalGrid(cellSizeM, divisions = 20) {
@@ -47,11 +64,34 @@ function updateLocalGrid(cellSizeM, divisions = 20) {
     scene.add(localGridHelper);
 }
 
+function updateSunAndShadows() {
+    if (!sky || !sun || !sunLight) return;
+
+    const time = effectController.timeOfDay;
+    // Calculate sun elevation: 0 at 6h and 18h, 90 at 12h.
+    const elevation = Math.max(0, Math.sin((time - 6) / 12 * Math.PI)) * 90;
+    // Keep azimuth fixed for a simple east-west sun path
+    const azimuth = 180;
+
+    const phi = THREE.MathUtils.degToRad(90 - elevation);
+    const theta = THREE.MathUtils.degToRad(azimuth);
+
+    sun.setFromSphericalCoords(1, phi, theta);
+
+    sky.material.uniforms['sunPosition'].value.copy(sun);
+    sky.material.uniforms['turbidity'].value = effectController.turbidity;
+    sky.material.uniforms['rayleigh'].value = effectController.rayleigh;
+    sky.material.uniforms['mieCoefficient'].value = effectController.mieCoefficient;
+    sky.material.uniforms['mieDirectionalG'].value = effectController.mieDirectionalG;
+
+    sunLight.position.copy(sun).multiplyScalar(400000); // Distant sun
+    sunLight.target.position.set(0, 0, 0); // Always look at origin
+    sunLight.visible = elevation > 0 && effectController.shadowsEnabled;
+}
+
 function init() {
     // Scene
     scene = new THREE.Scene();
-    scene.background = new THREE.Color(0x87ceeb); // Sky blue background
-    scene.fog = new THREE.Fog(0x87ceeb, 50000, 300000);
 
     // Camera
     camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 100, 400000);
@@ -60,6 +100,10 @@ function init() {
     // Renderer
     renderer = new THREE.WebGLRenderer({ antialias: true });
     renderer.setSize(window.innerWidth, window.innerHeight);
+    renderer.setPixelRatio(window.devicePixelRatio);
+    renderer.toneMapping = THREE.ACESFilmicToneMapping;
+    renderer.shadowMap.enabled = true;
+    renderer.shadowMap.type = THREE.PCFSoftShadowMap;
     document.body.appendChild(renderer.domElement);
 
     // Controls
@@ -75,13 +119,21 @@ function init() {
     raycaster = new THREE.Raycaster();
     mouse = new THREE.Vector2();
 
-    // Lighting
-    const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
-    scene.add(ambientLight);
+    // Lighting and Sky
+    sun = new THREE.Vector3();
 
-    const directionalLight = new THREE.DirectionalLight(0xffffff, 1.0);
-    directionalLight.position.set(130000, 100000, 80000); // Positioned to give some angle
-    scene.add(directionalLight);
+    sky = new Sky();
+    sky.scale.setScalar(450000);
+    scene.add(sky);
+    
+    sunLight = new THREE.DirectionalLight(0xffffff, 3);
+    sunLight.castShadow = true;
+    sunLight.shadow.mapSize.width = 2048;
+    sunLight.shadow.mapSize.height = 2048;
+    sunLight.shadow.camera.near = 100;
+    sunLight.shadow.camera.far = 1000000;
+    scene.add(sunLight);
+    scene.add(sunLight.target);
 
     // Event Listeners
     window.addEventListener('resize', onWindowResize, false);
@@ -92,6 +144,11 @@ function init() {
     const toggleGridCheckbox = document.getElementById('toggle-grid');
     const generateBtn = document.getElementById('generate-terrain');
     const gridCellSizeInput = document.getElementById('grid-cell-size');
+    const timeOfDaySlider = document.getElementById('time-of-day');
+    const timeOfDayValue = document.getElementById('time-of-day-value');
+    const animateSunCheckbox = document.getElementById('animate-sun');
+    const toggleShadowsCheckbox = document.getElementById('toggle-shadows');
+    const shadowQualitySelect = document.getElementById('shadow-quality');
 
     window.addEventListener('keydown', (event) => {
         // Use 'Backquote' which is the key for ` and ~ on US keyboards.
@@ -99,6 +156,33 @@ function init() {
             event.preventDefault();
             adminMenu.classList.toggle('hidden');
         }
+    });
+
+    timeOfDaySlider.addEventListener('input', (event) => {
+        const time = parseFloat(event.target.value);
+        effectController.timeOfDay = time;
+        const hours = Math.floor(time);
+        const minutes = Math.floor((time - hours) * 60);
+        timeOfDayValue.textContent = `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`;
+        updateSunAndShadows();
+    });
+    
+    animateSunCheckbox.addEventListener('change', (event) => {
+        effectController.animateSun = event.target.checked;
+    });
+
+    toggleShadowsCheckbox.addEventListener('change', (event) => {
+        effectController.shadowsEnabled = event.target.checked;
+        renderer.shadowMap.enabled = effectController.shadowsEnabled;
+        groundPlane.material.needsUpdate = true; // Force redraw to remove/add shadows
+        updateSunAndShadows();
+    });
+
+    shadowQualitySelect.addEventListener('change', (event) => {
+        const quality = parseInt(event.target.value, 10);
+        sunLight.shadow.mapSize.width = quality;
+        sunLight.shadow.mapSize.height = quality;
+        // Re-rendering is handled in the animate loop
     });
 
     if (gridCellSizeInput) {
@@ -163,7 +247,11 @@ function init() {
                 gridCellSize: document.getElementById('grid-cell-size').value,
                 showGrid: document.getElementById('toggle-grid').checked,
                 cameraPosition: camera.position.toArray(),
-                cameraTarget: controls.target.toArray()
+                cameraTarget: controls.target.toArray(),
+                timeOfDay: effectController.timeOfDay,
+                animateSun: effectController.animateSun,
+                shadowsEnabled: effectController.shadowsEnabled,
+                shadowQuality: document.getElementById('shadow-quality').value
             };
 
             const jsonString = JSON.stringify(settings, null, 2);
@@ -205,6 +293,17 @@ function init() {
                     document.getElementById('max-zoom').value = settings.maxZoom ?? '400000';
                     document.getElementById('grid-cell-size').value = settings.gridCellSize ?? '1000';
                     document.getElementById('toggle-grid').checked = settings.showGrid ?? true;
+                    
+                    document.getElementById('time-of-day').value = settings.timeOfDay ?? 12;
+                    document.getElementById('animate-sun').checked = settings.animateSun ?? true;
+                    document.getElementById('toggle-shadows').checked = settings.shadowsEnabled ?? true;
+                    document.getElementById('shadow-quality').value = settings.shadowQuality ?? '2048';
+
+                    // Manually trigger change events to apply settings
+                    document.getElementById('time-of-day').dispatchEvent(new Event('input'));
+                    document.getElementById('animate-sun').dispatchEvent(new Event('change'));
+                    document.getElementById('toggle-shadows').dispatchEvent(new Event('change'));
+                    document.getElementById('shadow-quality').dispatchEvent(new Event('change'));
 
                     // Trigger regeneration with new settings
                     generateBtn.click();
@@ -231,6 +330,7 @@ function init() {
 
     // Initial terrain generation
     generateBtn.click();
+    updateSunAndShadows(); // Set initial sun position
 
     // Start animation loop
     animate();
@@ -252,19 +352,38 @@ function onWindowResize() {
 function animate() {
     requestAnimationFrame(animate);
 
-    // Update local grid position based on camera focus point
+    if (effectController.animateSun) {
+        // Advance time of day, wrapping around 24 hours
+        effectController.timeOfDay = (effectController.timeOfDay + 0.01) % 24;
+        
+        // Update UI slider and text
+        const timeOfDaySlider = document.getElementById('time-of-day');
+        const timeOfDayValue = document.getElementById('time-of-day-value');
+        timeOfDaySlider.value = effectController.timeOfDay;
+        const hours = Math.floor(effectController.timeOfDay);
+        const minutes = Math.floor((effectController.timeOfDay - hours) * 60);
+        timeOfDayValue.textContent = `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`;
+        
+        updateSunAndShadows();
+    }
+
+    // Update local grid position based on mouse
     const showGrid = document.getElementById('toggle-grid').checked;
     if (showGrid && groundPlane && localGridHelper) {
-        localGridHelper.visible = true;
-        const centerPoint = controls.target;
-        const cellSize = parseFloat(document.getElementById('grid-cell-size').value);
+        raycaster.setFromCamera(mouse, camera);
+        const intersects = raycaster.intersectObject(groundPlane);
         
-        if (cellSize > 0) {
+        if (intersects.length > 0) {
+            localGridHelper.visible = true;
+            const intersectPoint = intersects[0].point;
+            const cellSize = parseFloat(document.getElementById('grid-cell-size').value);
+            
             // Snap the grid center to the nearest grid line intersection
-            localGridHelper.position.x = Math.round(centerPoint.x / cellSize) * cellSize;
-            localGridHelper.position.z = Math.round(centerPoint.z / cellSize) * cellSize;
+            localGridHelper.position.x = Math.round(intersectPoint.x / cellSize) * cellSize;
+            localGridHelper.position.z = Math.round(intersectPoint.z / cellSize) * cellSize;
+        } else {
+            localGridHelper.visible = false;
         }
-
     } else if (localGridHelper) {
         localGridHelper.visible = false;
     }
