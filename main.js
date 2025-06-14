@@ -161,7 +161,9 @@ function init() {
                 minZoom: document.getElementById('min-zoom').value,
                 maxZoom: document.getElementById('max-zoom').value,
                 gridCellSize: document.getElementById('grid-cell-size').value,
-                showGrid: document.getElementById('toggle-grid').checked
+                showGrid: document.getElementById('toggle-grid').checked,
+                cameraPosition: camera.position.toArray(),
+                cameraTarget: controls.target.toArray()
             };
 
             const jsonString = JSON.stringify(settings, null, 2);
@@ -207,6 +209,15 @@ function init() {
                     // Trigger regeneration with new settings
                     generateBtn.click();
                     
+                    // Restore camera state if present in the imported file
+                    if (settings.cameraPosition && Array.isArray(settings.cameraPosition) && settings.cameraPosition.length === 3) {
+                        camera.position.fromArray(settings.cameraPosition);
+                    }
+                    if (settings.cameraTarget && Array.isArray(settings.cameraTarget) && settings.cameraTarget.length === 3) {
+                        controls.target.fromArray(settings.cameraTarget);
+                    }
+                    controls.update(); // This is crucial for OrbitControls to apply the changes
+
                 } catch (error) {
                     alert(`Error loading or parsing settings file: ${error.message}`);
                 }
