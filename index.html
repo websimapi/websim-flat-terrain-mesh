@@ -18,61 +18,49 @@
     <div id="admin-menu" class="hidden">
         <h2>Admin Menu</h2>
 
-        <h3>Terrain</h3>
-        <div class="control-group">
-            <label for="terrain-width">Terrain Width (km)</label>
-            <input type="number" id="terrain-width" value="256" step="1">
-        </div>
-        <div class="control-group">
-            <label for="terrain-depth">Terrain Depth (km)</label>
-            <input type="number" id="terrain-depth" value="256" step="1">
-        </div>
-
-        <h3>Camera</h3>
-        <div class="control-group">
-            <label for="min-zoom">Min Zoom (m)</label>
-            <input type="number" id="min-zoom" value="10" step="1">
-        </div>
-        <div class="control-group">
-            <label for="max-zoom">Max Zoom (m)</label>
-            <input type="number" id="max-zoom" value="400000" step="1000">
+        <div class="settings-section">
+            <h3>Terrain</h3>
+            <div class="control-group">
+                <label for="terrain-width">Width (km)</label>
+                <input type="number" id="terrain-width" value="256" step="1">
+            </div>
+            <div class="control-group">
+                <label for="terrain-depth">Depth (km)</label>
+                <input type="number" id="terrain-depth" value="256" step="1">
+            </div>
         </div>
 
-        <button id="generate-terrain">Apply & Regenerate Terrain</button>
+        <div class="settings-section">
+            <h3>View</h3>
+            <div class="control-group">
+                <label for="min-zoom">Min Zoom (m)</label>
+                <input type="number" id="min-zoom" value="10" step="1">
+            </div>
+            <div class="control-group">
+                <label for="max-zoom">Max Zoom (m)</label>
+                <input type="number" id="max-zoom" value="400000" step="1000">
+            </div>
+            <div class="control-group">
+                <label for="grid-cell-size">Grid Size (m)</label>
+                <input type="number" id="grid-cell-size" value="1000" step="100">
+            </div>
+            <div class="control-group">
+                <label for="toggle-grid">Show Grid</label>
+                <input type="checkbox" id="toggle-grid" checked>
+            </div>
+        </div>
+        
+        <div class="settings-section">
+            <h3>Data</h3>
+            <div class="button-group">
+                <button id="export-terrain">Export</button>
+                <button id="import-terrain">Import</button>
+            </div>
+            <input type="file" id="import-file-input" style="display:none" accept=".json">
+        </div>
 
-        <h3>Import / Export</h3>
-        <button id="export-terrain">Export Terrain (JSON)</button>
-        <button id="import-terrain">Import Terrain (JSON)</button>
-        <input type="file" id="import-file-input" style="display:none" accept=".json">
+        <button id="generate-terrain" class="primary-action">Apply & Regenerate</button>
 
-        <h3>Grid</h3>
-        <div class="control-group">
-            <label for="grid-cell-size">Grid Cell Size (m)</label>
-            <input type="number" id="grid-cell-size" value="1000" step="100">
-        </div>
-        <div class="control-group">
-            <label for="toggle-grid">Show Grid</label>
-            <input type="checkbox" id="toggle-grid" checked>
-        </div>
-
-        <h3>Sun & Lighting</h3>
-        <div class="control-group">
-            <label for="time-of-day">Time of Day</label>
-            <input type="range" id="time-of-day" min="0" max="24" step="0.1" value="12">
-            <span id="time-display">12:00</span>
-        </div>
-        <div class="control-group">
-            <label for="sun-cycle-speed">Cycle Speed</label>
-            <input type="number" id="sun-cycle-speed" value="0" step="0.1" min="0" max="10">
-        </div>
-        <div class="control-group">
-            <label for="auto-cycle">Auto Cycle</label>
-            <input type="checkbox" id="auto-cycle">
-        </div>
-        <div class="control-group">
-            <label for="sun-intensity">Sun Intensity</label>
-            <input type="range" id="sun-intensity" min="0" max="3" step="0.1" value="1">
-        </div>
     </div>
     <script type="module" src="main.js"></script>
 <script defer src="https://static.cloudflareinsights.com/beacon.min.js/v8c78df7c7c0f484497ecbca7046644da1771523124516" integrity="sha512-8DS7rgIrAmghBFwoOTujcf6D9rXvH8xm8JQ1Ja01h9QX8EzXldiszufYa4IFfKdLUKTTrnSFXLDkUEOTrZQ8Qg==" data-cf-beacon='{"version":"2024.11.0","token":"4c6229722a6346bc8eb5cb0e5eae5d41","server_timing":{"name":{"cfCacheStatus":true,"cfEdge":true,"cfExtPri":true,"cfL4":true,"cfOrigin":true,"cfSpeedBrain":true},"location_startswith":null}}' crossorigin="anonymous"></script>
