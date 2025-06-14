@@ -1,21 +1,104 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
-import { Sky } from 'three/addons/objects/Sky.js';
-import { Lensflare, LensflareElement } from 'three/addons/objects/Lensflare.js';
 
 let scene, camera, renderer, controls, localGridHelper, groundPlane;
 let raycaster, mouse;
-let sky, sun, sunLight;
+let sun, sunLight, ambientLight;
+let timeOfDay = 12; // 0-24 hours
+let sunCycleSpeed = 0;
+let autoSunCycle = false;
+let sunIntensity = 1;
 
-const effectController = {
-    turbidity: 10,
-    rayleigh: 3,
-    mieCoefficient: 0.005,
-    mieDirectionalG: 0.7,
-    timeOfDay: 12, // 0-24
-    animateSun: true,
-    shadowsEnabled: true,
-};
+function createSun() {
+    // Create sun geometry and material
+    const sunGeometry = new THREE.SphereGeometry(5000, 32, 32);
+    const sunMaterial = new THREE.MeshBasicMaterial({
+        color: 0xffffff,
+        emissive: 0xffff00,
+        emissiveIntensity: 0.8
+    });
+    
+    sun = new THREE.Mesh(sunGeometry, sunMaterial);
+    scene.add(sun);
+    
+    // Create sun light
+    sunLight = new THREE.DirectionalLight(0xffffff, sunIntensity);
+    sunLight.castShadow = true;
+    sunLight.shadow.mapSize.width = 2048;
+    sunLight.shadow.mapSize.height = 2048;
+    scene.add(sunLight);
+    
+    updateSunPosition();
+}
+
+function updateSunPosition() {
+    if (!sun || !sunLight) return;
+    
+    // Convert time to angle (0-24 hours to 0-360 degrees)
+    const angle = (timeOfDay / 24) * Math.PI * 2 - Math.PI / 2; // Start at sunrise
+    const sunDistance = 200000;
+    
+    // Calculate sun position
+    const sunX = Math.cos(angle) * sunDistance;
+    const sunY = Math.sin(angle) * sunDistance;
+    const sunZ = 0;
+    
+    sun.position.set(sunX, sunY, sunZ);
+    sunLight.position.copy(sun.position);
+    sunLight.target.position.set(0, 0, 0);
+    
+    // Update sun appearance based on time
+    const dayIntensity = Math.max(0, Math.sin(angle + Math.PI / 2));
+    const sunColor = getSunColor(timeOfDay);
+    const skyColor = getSkyColor(timeOfDay);
+    
+    sun.material.color.setHex(sunColor);
+    sun.material.emissive.setHex(sunColor);
+    sun.material.emissiveIntensity = 0.8 * dayIntensity;
+    
+    sunLight.intensity = sunIntensity * dayIntensity;
+    sunLight.color.setHex(sunColor);
+    
+    // Update ambient light
+    const ambientIntensity = Math.max(0.1, dayIntensity * 0.4);
+    ambientLight.intensity = ambientIntensity;
+    ambientLight.color.setHex(skyColor);
+    
+    // Update sky color
+    scene.background.setHex(skyColor);
+    scene.fog.color.setHex(skyColor);
+}
+
+function getSunColor(time) {
+    // Sunrise/sunset colors
+    if (time < 6 || time > 18) {
+        return 0x4169e1; // Royal blue for night
+    } else if (time < 8 || time > 16) {
+        return 0xff6347; // Tomato for sunrise/sunset
+    } else {
+        return 0xffffff; // White for day
+    }
+}
+
+function getSkyColor(time) {
+    // Sky color based on time
+    if (time < 5 || time > 19) {
+        return 0x000033; // Dark blue for night
+    } else if (time < 7 || time > 17) {
+        return 0xff7f50; // Coral for sunrise/sunset
+    } else if (time < 9 || time > 15) {
+        return 0x87ceeb; // Sky blue for morning/evening
+    } else {
+        return 0x87ceeb; // Sky blue for day
+    }
+}
+
+function updateTimeDisplay() {
+    const hours = Math.floor(timeOfDay);
+    const minutes = Math.floor((timeOfDay - hours) * 60);
+    const timeString = `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`;
+    document.getElementById('time-display').textContent = timeString;
+}
 
 function generateTerrain(widthM, depthM) {
     // Cleanup old terrain
@@ -32,7 +115,6 @@ function generateTerrain(widthM, depthM) {
     });
     groundPlane = new THREE.Mesh(groundGeometry, groundMaterial);
     groundPlane.rotation.x = -Math.PI / 2;
-    groundPlane.receiveShadow = true;
     scene.add(groundPlane);
 
     // Update camera, controls, fog based on new terrain size
@@ -40,14 +122,10 @@ function generateTerrain(widthM, depthM) {
     camera.far = maxDim * 2;
     camera.updateProjectionMatrix();
 
-    // Update shadow camera frustum
-    if (sunLight) {
-        sunLight.shadow.camera.left = -widthM / 2;
-        sunLight.shadow.camera.right = widthM / 2;
-        sunLight.shadow.camera.top = depthM / 2;
-        sunLight.shadow.camera.bottom = -depthM / 2;
-        sunLight.shadow.camera.updateProjectionMatrix();
-    }
+    // controls.maxDistance = maxDim * 1.5; // Now user-controlled via debug menu
+    
+    scene.fog.near = maxDim * 0.1;
+    scene.fog.far = maxDim * 1.5;
 }
 
 function updateLocalGrid(cellSizeM, divisions = 20) {
@@ -65,44 +143,18 @@ function updateLocalGrid(cellSizeM, divisions = 20) {
     scene.add(localGridHelper);
 }
 
-function updateSunAndShadows() {
-    if (!sky || !sun || !sunLight) return;
-
-    const time = effectController.timeOfDay;
-    // Calculate sun elevation: 0 at 6h and 18h, 90 at 12h.
-    const elevation = Math.max(0, Math.sin((time - 6) / 12 * Math.PI)) * 90;
-    // Keep azimuth fixed for a simple east-west sun path
-    const azimuth = 180;
-
-    const phi = THREE.MathUtils.degToRad(90 - elevation);
-    const theta = THREE.MathUtils.degToRad(azimuth);
-
-    sun.setFromSphericalCoords(1, phi, theta);
-
-    sky.material.uniforms['sunPosition'].value.copy(sun);
-    sky.material.uniforms['turbidity'].value = effectController.turbidity;
-    sky.material.uniforms['rayleigh'].value = effectController.rayleigh;
-    sky.material.uniforms['mieCoefficient'].value = effectController.mieCoefficient;
-    sky.material.uniforms['mieDirectionalG'].value = effectController.mieDirectionalG;
-
-    sunLight.position.copy(sun).multiplyScalar(400000); // Distant sun
-    sunLight.target.position.set(0, 0, 0); // Always look at origin
-    sunLight.visible = elevation > 0 && effectController.shadowsEnabled;
-}
-
 function init() {
     // Scene
     scene = new THREE.Scene();
+    scene.background = new THREE.Color(0x87ceeb); // Sky blue background
+    scene.fog = new THREE.Fog(0x87ceeb, 50000, 300000);
 
     // Camera
     camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 100, 400000);
-    // camera.position.set(0, 20000, 40000); // Position will be set dynamically
 
     // Renderer
     renderer = new THREE.WebGLRenderer({ antialias: true });
     renderer.setSize(window.innerWidth, window.innerHeight);
-    renderer.setPixelRatio(window.devicePixelRatio);
-    renderer.toneMapping = THREE.ACESFilmicToneMapping;
     renderer.shadowMap.enabled = true;
     renderer.shadowMap.type = THREE.PCFSoftShadowMap;
     document.body.appendChild(renderer.domElement);
@@ -120,34 +172,12 @@ function init() {
     raycaster = new THREE.Raycaster();
     mouse = new THREE.Vector2();
 
-    // Lighting and Sky
-    sun = new THREE.Vector3();
+    // Lighting
+    ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
+    scene.add(ambientLight);
 
-    sky = new Sky();
-    sky.scale.setScalar(450000);
-    scene.add(sky);
-    
-    sunLight = new THREE.DirectionalLight(0xffffff, 3);
-    sunLight.castShadow = true;
-    sunLight.shadow.mapSize.width = 2048;
-    sunLight.shadow.mapSize.height = 2048;
-    sunLight.shadow.camera.near = 100;
-    sunLight.shadow.camera.far = 1000000;
-    scene.add(sunLight);
-    scene.add(sunLight.target);
-
-    // Lensflare
-    const textureLoader = new THREE.TextureLoader();
-    const textureFlare0 = textureLoader.load('lensflare0.png');
-    const textureFlare3 = textureLoader.load('lensflare3.png');
-
-    const lensflare = new Lensflare();
-    lensflare.addElement(new LensflareElement(textureFlare0, 512, 0, sunLight.color));
-    lensflare.addElement(new LensflareElement(textureFlare3, 60, 0.6));
-    lensflare.addElement(new LensflareElement(textureFlare3, 70, 0.7));
-    lensflare.addElement(new LensflareElement(textureFlare3, 120, 0.9));
-    lensflare.addElement(new LensflareElement(textureFlare3, 70, 1.0));
-    sunLight.add(lensflare);
+    // Create sun and sun lighting
+    createSun();
 
     // Event Listeners
     window.addEventListener('resize', onWindowResize, false);
@@ -158,83 +188,47 @@ function init() {
     const toggleGridCheckbox = document.getElementById('toggle-grid');
     const generateBtn = document.getElementById('generate-terrain');
     const gridCellSizeInput = document.getElementById('grid-cell-size');
+    
+    // Sun controls
     const timeOfDaySlider = document.getElementById('time-of-day');
-    const timeOfDayValue = document.getElementById('time-of-day-value');
-    const animateSunCheckbox = document.getElementById('animate-sun');
-    const toggleShadowsCheckbox = document.getElementById('toggle-shadows');
-    const shadowQualitySelect = document.getElementById('shadow-quality');
-
-    const turbiditySlider = document.getElementById('turbidity');
-    const turbidityValue = document.getElementById('turbidity-value');
-    const rayleighSlider = document.getElementById('rayleigh');
-    const rayleighValue = document.getElementById('rayleigh-value');
-    const mieCoefficientSlider = document.getElementById('mie-coefficient');
-    const mieCoefficientValue = document.getElementById('mie-coefficient-value');
-    const mieDirectionalGSlider = document.getElementById('mie-directional-g');
-    const mieDirectionalGValue = document.getElementById('mie-directional-g-value');
+    const sunCycleSpeedInput = document.getElementById('sun-cycle-speed');
+    const autoCycleCheckbox = document.getElementById('auto-cycle');
+    const sunIntensitySlider = document.getElementById('sun-intensity');
 
     window.addEventListener('keydown', (event) => {
-        // Use 'Backquote' which is the key for ` and ~ on US keyboards.
         if (event.code === 'Backquote') {
             event.preventDefault();
             adminMenu.classList.toggle('hidden');
         }
     });
 
-    timeOfDaySlider.addEventListener('input', (event) => {
-        const time = parseFloat(event.target.value);
-        effectController.timeOfDay = time;
-        const hours = Math.floor(time);
-        const minutes = Math.floor((time - hours) * 60);
-        timeOfDayValue.textContent = `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`;
-        updateSunAndShadows();
-    });
-    
-    animateSunCheckbox.addEventListener('change', (event) => {
-        effectController.animateSun = event.target.checked;
-    });
+    // Sun control event listeners
+    if (timeOfDaySlider) {
+        timeOfDaySlider.addEventListener('input', (event) => {
+            timeOfDay = parseFloat(event.target.value);
+            updateSunPosition();
+            updateTimeDisplay();
+        });
+    }
 
-    toggleShadowsCheckbox.addEventListener('change', (event) => {
-        effectController.shadowsEnabled = event.target.checked;
-        renderer.shadowMap.enabled = effectController.shadowsEnabled;
-        groundPlane.material.needsUpdate = true; // Force redraw to remove/add shadows
-        updateSunAndShadows();
-    });
+    if (sunCycleSpeedInput) {
+        sunCycleSpeedInput.addEventListener('change', (event) => {
+            sunCycleSpeed = parseFloat(event.target.value);
+        });
+    }
 
-    shadowQualitySelect.addEventListener('change', (event) => {
-        const quality = parseInt(event.target.value, 10);
-        sunLight.shadow.mapSize.width = quality;
-        sunLight.shadow.mapSize.height = quality;
-        // Re-rendering is handled in the animate loop
-    });
+    if (autoCycleCheckbox) {
+        autoCycleCheckbox.addEventListener('change', (event) => {
+            autoSunCycle = event.target.checked;
+        });
+    }
 
-    turbiditySlider.addEventListener('input', (event) => {
-        const value = parseFloat(event.target.value);
-        effectController.turbidity = value;
-        turbidityValue.textContent = value.toFixed(1);
-        updateSunAndShadows();
-    });
-
-    rayleighSlider.addEventListener('input', (event) => {
-        const value = parseFloat(event.target.value);
-        effectController.rayleigh = value;
-        rayleighValue.textContent = value.toFixed(2);
-        updateSunAndShadows();
-    });
-
-    mieCoefficientSlider.addEventListener('input', (event) => {
-        const value = parseFloat(event.target.value);
-        effectController.mieCoefficient = value;
-        mieCoefficientValue.textContent = value.toFixed(3);
-        updateSunAndShadows();
-    });
-
-    mieDirectionalGSlider.addEventListener('input', (event) => {
-        const value = parseFloat(event.target.value);
-        effectController.mieDirectionalG = value;
-        mieDirectionalGValue.textContent = value.toFixed(2);
-        updateSunAndShadows();
-    });
+    if (sunIntensitySlider) {
+        sunIntensitySlider.addEventListener('input', (event) => {
+            sunIntensity = parseFloat(event.target.value);
+            updateSunPosition();
+        });
+    }
 
     if (gridCellSizeInput) {
         gridCellSizeInput.addEventListener('change', () => {
@@ -298,15 +292,7 @@ function init() {
                 gridCellSize: document.getElementById('grid-cell-size').value,
                 showGrid: document.getElementById('toggle-grid').checked,
                 cameraPosition: camera.position.toArray(),
-                cameraTarget: controls.target.toArray(),
-                timeOfDay: effectController.timeOfDay,
-                animateSun: effectController.animateSun,
-                shadowsEnabled: effectController.shadowsEnabled,
-                shadowQuality: document.getElementById('shadow-quality').value,
-                turbidity: effectController.turbidity,
-                rayleigh: effectController.rayleigh,
-                mieCoefficient: effectController.mieCoefficient,
-                mieDirectionalG: effectController.mieDirectionalG
+                cameraTarget: controls.target.toArray()
             };
 
             const jsonString = JSON.stringify(settings, null, 2);
@@ -348,27 +334,6 @@ function init() {
                     document.getElementById('max-zoom').value = settings.maxZoom ?? '400000';
                     document.getElementById('grid-cell-size').value = settings.gridCellSize ?? '1000';
                     document.getElementById('toggle-grid').checked = settings.showGrid ?? true;
-                    
-                    document.getElementById('time-of-day').value = settings.timeOfDay ?? 12;
-                    document.getElementById('animate-sun').checked = settings.animateSun ?? true;
-                    document.getElementById('toggle-shadows').checked = settings.shadowsEnabled ?? true;
-                    document.getElementById('shadow-quality').value = settings.shadowQuality ?? '2048';
-
-                    document.getElementById('turbidity').value = settings.turbidity ?? 10;
-                    document.getElementById('rayleigh').value = settings.rayleigh ?? 3;
-                    document.getElementById('mie-coefficient').value = settings.mieCoefficient ?? 0.005;
-                    document.getElementById('mie-directional-g').value = settings.mieDirectionalG ?? 0.7;
-
-                    // Manually trigger change events to apply settings
-                    document.getElementById('time-of-day').dispatchEvent(new Event('input'));
-                    document.getElementById('animate-sun').dispatchEvent(new Event('change'));
-                    document.getElementById('toggle-shadows').dispatchEvent(new Event('change'));
-                    document.getElementById('shadow-quality').dispatchEvent(new Event('change'));
-
-                    document.getElementById('turbidity').dispatchEvent(new Event('input'));
-                    document.getElementById('rayleigh').dispatchEvent(new Event('input'));
-                    document.getElementById('mie-coefficient').dispatchEvent(new Event('input'));
-                    document.getElementById('mie-directional-g').dispatchEvent(new Event('input'));
 
                     // Trigger regeneration with new settings
                     generateBtn.click();
@@ -395,7 +360,9 @@ function init() {
 
     // Initial terrain generation
     generateBtn.click();
-    updateSunAndShadows(); // Set initial sun position
+    
+    // Initialize time display
+    updateTimeDisplay();
 
     // Start animation loop
     animate();
@@ -417,19 +384,14 @@ function onWindowResize() {
 function animate() {
     requestAnimationFrame(animate);
 
-    if (effectController.animateSun) {
-        // Advance time of day, wrapping around 24 hours
-        effectController.timeOfDay = (effectController.timeOfDay + 0.01) % 24;
+    // Update sun cycle
+    if (autoSunCycle && sunCycleSpeed > 0) {
+        timeOfDay += sunCycleSpeed * 0.016; // Approximate 60fps
+        if (timeOfDay >= 24) timeOfDay = 0;
         
-        // Update UI slider and text
-        const timeOfDaySlider = document.getElementById('time-of-day');
-        const timeOfDayValue = document.getElementById('time-of-day-value');
-        timeOfDaySlider.value = effectController.timeOfDay;
-        const hours = Math.floor(effectController.timeOfDay);
-        const minutes = Math.floor((effectController.timeOfDay - hours) * 60);
-        timeOfDayValue.textContent = `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`;
-        
-        updateSunAndShadows();
+        document.getElementById('time-of-day').value = timeOfDay;
+        updateSunPosition();
+        updateTimeDisplay();
     }
 
     // Update local grid position based on mouse

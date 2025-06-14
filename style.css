@@ -76,28 +76,21 @@ canvas {
     text-align: right;
 }
 
-#admin-menu select {
-    width: 74px; 
+.control-group input[type="range"] {
+    width: 80px;
     background-color: #333;
-    color: white;
-    border: 1px solid #555;
     border-radius: 3px;
-    padding: 2px 5px;
 }
 
-#admin-menu input[type="range"] {
-    flex-grow: 1;
-    margin: 0 10px;
-}
-
-.control-value {
-    min-width: 50px;
+.control-group span {
+    font-size: 0.9em;
+    color: #ccc;
+    min-width: 40px;
     text-align: right;
-    font-variant-numeric: tabular-nums;
 }
 
-#time-of-day-value {
-    font-variant-numeric: tabular-nums;
+.control-group input[type="checkbox"] {
+    margin-left: auto;
 }
 
 #admin-menu button {

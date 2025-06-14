@@ -45,51 +45,6 @@
         <button id="import-terrain">Import Terrain (JSON)</button>
         <input type="file" id="import-file-input" style="display:none" accept=".json">
 
-        <h3>Sun & Sky</h3>
-        <div class="control-group">
-            <label for="time-of-day">Time of Day</label>
-            <input type="range" id="time-of-day" min="0" max="24" step="0.1" value="12">
-            <span id="time-of-day-value" class="control-value">12:00</span>
-        </div>
-        <div class="control-group">
-            <label for="animate-sun">Animate Sun</label>
-            <input type="checkbox" id="animate-sun" checked>
-        </div>
-        <div class="control-group">
-            <label for="toggle-shadows">Enable Shadows</label>
-            <input type="checkbox" id="toggle-shadows" checked>
-        </div>
-        <div class="control-group">
-            <label for="shadow-quality">Shadow Quality</label>
-            <select id="shadow-quality">
-                <option value="512">Low</option>
-                <option value="1024">Medium</option>
-                <option value="2048" selected>High</option>
-                <option value="4096">Ultra</option>
-            </select>
-        </div>
-
-        <div class="control-group">
-            <label for="turbidity">Turbidity</label>
-            <input type="range" id="turbidity" min="1" max="20" step="0.1" value="10">
-            <span id="turbidity-value" class="control-value">10.0</span>
-        </div>
-        <div class="control-group">
-            <label for="rayleigh">Rayleigh</label>
-            <input type="range" id="rayleigh" min="0" max="4" step="0.01" value="3">
-            <span id="rayleigh-value" class="control-value">3.00</span>
-        </div>
-        <div class="control-group">
-            <label for="mie-coefficient">Mie Coefficient</label>
-            <input type="range" id="mie-coefficient" min="0" max="0.1" step="0.001" value="0.005">
-            <span id="mie-coefficient-value" class="control-value">0.005</span>
-        </div>
-        <div class="control-group">
-            <label for="mie-directional-g">Mie Directional G</label>
-            <input type="range" id="mie-directional-g" min="0" max="1" step="0.01" value="0.7">
-            <span id="mie-directional-g-value" class="control-value">0.70</span>
-        </div>
-
         <h3>Grid</h3>
         <div class="control-group">
             <label for="grid-cell-size">Grid Cell Size (m)</label>
@@ -98,6 +53,25 @@
         <div class="control-group">
             <label for="toggle-grid">Show Grid</label>
             <input type="checkbox" id="toggle-grid" checked>
+        </div>
+
+        <h3>Sun & Lighting</h3>
+        <div class="control-group">
+            <label for="time-of-day">Time of Day</label>
+            <input type="range" id="time-of-day" min="0" max="24" step="0.1" value="12">
+            <span id="time-display">12:00</span>
+        </div>
+        <div class="control-group">
+            <label for="sun-cycle-speed">Cycle Speed</label>
+            <input type="number" id="sun-cycle-speed" value="0" step="0.1" min="0" max="10">
+        </div>
+        <div class="control-group">
+            <label for="auto-cycle">Auto Cycle</label>
+            <input type="checkbox" id="auto-cycle">
+        </div>
+        <div class="control-group">
+            <label for="sun-intensity">Sun Intensity</label>
+            <input type="range" id="sun-intensity" min="0" max="3" step="0.1" value="1">
         </div>
     </div>
     <script type="module" src="main.js"></script>
