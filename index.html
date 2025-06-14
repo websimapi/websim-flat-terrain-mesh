@@ -15,8 +15,8 @@
     </script>
 </head>
 <body>
-    <div id="debug-menu" class="hidden">
-        <h2>Debug Menu</h2>
+    <div id="admin-menu" class="hidden">
+        <h2>Admin Menu</h2>
 
         <h3>Terrain</h3>
         <div class="control-group">
@@ -39,6 +39,11 @@
         </div>
 
         <button id="generate-terrain">Apply & Regenerate Terrain</button>
+
+        <h3>Import / Export</h3>
+        <button id="export-terrain">Export Terrain (JSON)</button>
+        <button id="import-terrain">Import Terrain (JSON)</button>
+        <input type="file" id="import-file-input" style="display:none" accept=".json">
 
         <h3>Grid</h3>
         <div class="control-group">

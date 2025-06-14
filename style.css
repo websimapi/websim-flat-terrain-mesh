@@ -20,7 +20,7 @@ canvas {
     display:block;
 }
 
-#debug-menu {
+#admin-menu {
     position: absolute;
     top: 10px;
     left: 10px;
@@ -32,11 +32,11 @@ canvas {
     min-width: 250px;
 }
 
-#debug-menu.hidden {
+#admin-menu.hidden {
     display: none;
 }
 
-#debug-menu h2 {
+#admin-menu h2 {
     margin-top: 0;
     font-size: 1.2em;
     border-bottom: 1px solid #555;
@@ -44,7 +44,7 @@ canvas {
     margin-bottom: 10px;
 }
 
-#debug-menu h3 {
+#admin-menu h3 {
     font-size: 1em;
     color: #ccc;
     border-bottom: 1px solid #444;
@@ -54,7 +54,7 @@ canvas {
     font-weight: normal;
 }
 
-#debug-menu p {
+#admin-menu p {
     font-size: 0.9em;
     margin: 10px 0;
 }
@@ -76,7 +76,7 @@ canvas {
     text-align: right;
 }
 
-#debug-menu button {
+#admin-menu button {
     background-color: #007bff;
     color: white;
     padding: 8px 12px;
@@ -89,6 +89,6 @@ canvas {
     font-size: 1em;
 }
 
-#debug-menu button:hover {
+#admin-menu button:hover {
     background-color: #0069d9;
 }

@@ -87,8 +87,8 @@ function init() {
     window.addEventListener('resize', onWindowResize, false);
     window.addEventListener('mousemove', onMouseMove, false);
 
-    // Debug Menu
-    const debugMenu = document.getElementById('debug-menu');
+    // Admin Menu
+    const adminMenu = document.getElementById('admin-menu');
     const toggleGridCheckbox = document.getElementById('toggle-grid');
     const generateBtn = document.getElementById('generate-terrain');
     const gridCellSizeInput = document.getElementById('grid-cell-size');
@@ -97,7 +97,7 @@ function init() {
         // Use 'Backquote' which is the key for ` and ~ on US keyboards.
         if (event.code === 'Backquote') {
             event.preventDefault();
-            debugMenu.classList.toggle('hidden');
+            adminMenu.classList.toggle('hidden');
         }
     });
 
@@ -145,6 +145,76 @@ function init() {
             camera.position.set(0, maxDimM / 8, maxDimM / 4);
             controls.target.set(0, 0, 0);
             controls.update();
+        });
+    }
+
+    // Import/Export functionality
+    const exportBtn = document.getElementById('export-terrain');
+    const importBtn = document.getElementById('import-terrain');
+    const importFileInput = document.getElementById('import-file-input');
+
+    if(exportBtn) {
+        exportBtn.addEventListener('click', () => {
+            const settings = {
+                terrainWidth: document.getElementById('terrain-width').value,
+                terrainDepth: document.getElementById('terrain-depth').value,
+                minZoom: document.getElementById('min-zoom').value,
+                maxZoom: document.getElementById('max-zoom').value,
+                gridCellSize: document.getElementById('grid-cell-size').value,
+                showGrid: document.getElementById('toggle-grid').checked
+            };
+
+            const jsonString = JSON.stringify(settings, null, 2);
+            const blob = new Blob([jsonString], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'terrain-settings.json';
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        });
+    }
+
+    if(importBtn) {
+        importBtn.addEventListener('click', () => {
+            importFileInput.click();
+        });
+    }
+
+    if(importFileInput) {
+        importFileInput.addEventListener('change', (event) => {
+            const file = event.target.files[0];
+            if (!file) {
+                return;
+            }
+
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                try {
+                    const settings = JSON.parse(e.target.result);
+
+                    if (typeof settings !== 'object' || settings === null) throw new Error("Invalid JSON format");
+
+                    document.getElementById('terrain-width').value = settings.terrainWidth ?? '256';
+                    document.getElementById('terrain-depth').value = settings.terrainDepth ?? '256';
+                    document.getElementById('min-zoom').value = settings.minZoom ?? '10';
+                    document.getElementById('max-zoom').value = settings.maxZoom ?? '400000';
+                    document.getElementById('grid-cell-size').value = settings.gridCellSize ?? '1000';
+                    document.getElementById('toggle-grid').checked = settings.showGrid ?? true;
+
+                    // Trigger regeneration with new settings
+                    generateBtn.click();
+                    
+                } catch (error) {
+                    alert(`Error loading or parsing settings file: ${error.message}`);
+                }
+            };
+            reader.readAsText(file);
+            
+            // Reset input to allow re-selection of the same file
+            event.target.value = '';
         });
     }
 
