@@ -3,7 +3,7 @@ import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 
 let scene, camera, renderer, controls, gridHelper, groundPlane;
 
-function generateTerrain(widthKm, depthKm, cellSizeKm) {
+function generateTerrain(widthKm, depthKm, cellSizeM) {
     // Cleanup old terrain
     if (groundPlane) {
         scene.remove(groundPlane);
@@ -18,7 +18,6 @@ function generateTerrain(widthKm, depthKm, cellSizeKm) {
 
     const widthM = widthKm * 1000;
     const depthM = depthKm * 1000;
-    const cellSizeM = cellSizeKm * 1000;
 
     // Green ground plane
     const groundGeometry = new THREE.PlaneGeometry(widthM, depthM);
