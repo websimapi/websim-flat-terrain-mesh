@@ -41,7 +41,13 @@ function updateLocalGrid(cellSizeM, divisions = 20) {
 
     const size = cellSizeM * divisions;
     localGridHelper = new THREE.GridHelper(size, divisions, 0xffffff, 0xffffff);
-    localGridHelper.position.y = 1; // Position slightly above the ground plane to ensure visibility
+    
+    // Prevent z-fighting and rendering glitches by telling the grid to render on top.
+    localGridHelper.material.depthTest = false;
+    localGridHelper.material.depthWrite = false;
+    localGridHelper.renderOrder = 1;
+
+    localGridHelper.position.y = 2; // Position slightly more above the ground plane to ensure visibility
     localGridHelper.visible = false; // Initially hidden
    
     scene.add(localGridHelper);
@@ -58,7 +64,7 @@ function init() {
     // camera.position.set(0, 20000, 40000); // Position will be set dynamically
 
     // Renderer
-    renderer = new THREE.WebGLRenderer({ antialias: true });
+    renderer = new THREE.WebGLRenderer({ antialias: true, logarithmicDepthBuffer: true });
     renderer.setSize(window.innerWidth, window.innerHeight);
     document.body.appendChild(renderer.domElement);
 
