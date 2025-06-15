@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 
 let scene, camera, renderer, controls, localGridHelper, groundPlane;
-let raycaster, mouse;
+let raycaster;
 
 function generateTerrain(widthM, depthM) {
     // Cleanup old terrain
@@ -73,7 +73,6 @@ function init() {
 
     // Raycaster and mouse
     raycaster = new THREE.Raycaster();
-    mouse = new THREE.Vector2();
 
     // Lighting
     const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
@@ -85,7 +84,6 @@ function init() {
 
     // Event Listeners
     window.addEventListener('resize', onWindowResize, false);
-    window.addEventListener('mousemove', onMouseMove, false);
 
     // Admin Menu
     const adminMenu = document.getElementById('admin-menu');
@@ -252,10 +250,11 @@ function onWindowResize() {
 function animate() {
     requestAnimationFrame(animate);
 
-    // Update local grid position based on mouse
+    // Update local grid position based on where the camera is looking
     const showGrid = document.getElementById('toggle-grid').checked;
     if (showGrid && groundPlane && localGridHelper) {
-        raycaster.setFromCamera(mouse, camera);
+        // Cast a ray from the center of the camera's view
+        raycaster.setFromCamera({ x: 0, y: 0 }, camera);
         const intersects = raycaster.intersectObject(groundPlane);
         
         if (intersects.length > 0) {
