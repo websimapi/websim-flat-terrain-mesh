@@ -9,8 +9,7 @@
         {
             "imports": {
                 "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
-                "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/",
-                "three/addons/objects/Sky.js": "https://unpkg.com/three@0.160.0/examples/jsm/objects/Sky.js"
+                "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
             }
         }
     </script>
@@ -19,76 +18,49 @@
     <div id="admin-menu" class="hidden">
         <h2>Admin Menu</h2>
 
-        <h3>Terrain</h3>
-        <div class="control-group">
-            <label for="terrain-width">Terrain Width (km)</label>
-            <input type="number" id="terrain-width" value="256" step="1">
-        </div>
-        <div class="control-group">
-            <label for="terrain-depth">Terrain Depth (km)</label>
-            <input type="number" id="terrain-depth" value="256" step="1">
-        </div>
-
-        <h3>Camera</h3>
-        <div class="control-group">
-            <label for="min-zoom">Min Zoom (m)</label>
-            <input type="number" id="min-zoom" value="10" step="1">
-        </div>
-        <div class="control-group">
-            <label for="max-zoom">Max Zoom (m)</label>
-            <input type="number" id="max-zoom" value="400000" step="1000">
+        <div class="settings-section">
+            <h3>Terrain</h3>
+            <div class="control-group">
+                <label for="terrain-width">Width (km)</label>
+                <input type="number" id="terrain-width" value="256" step="1">
+            </div>
+            <div class="control-group">
+                <label for="terrain-depth">Depth (km)</label>
+                <input type="number" id="terrain-depth" value="256" step="1">
+            </div>
         </div>
 
-        <button id="generate-terrain">Apply & Regenerate Terrain</button>
+        <div class="settings-section">
+            <h3>View</h3>
+            <div class="control-group">
+                <label for="min-zoom">Min Zoom (m)</label>
+                <input type="number" id="min-zoom" value="10" step="1">
+            </div>
+            <div class="control-group">
+                <label for="max-zoom">Max Zoom (m)</label>
+                <input type="number" id="max-zoom" value="400000" step="1000">
+            </div>
+            <div class="control-group">
+                <label for="grid-cell-size">Grid Size (m)</label>
+                <input type="number" id="grid-cell-size" value="1000" step="100">
+            </div>
+            <div class="control-group">
+                <label for="toggle-grid">Show Grid</label>
+                <input type="checkbox" id="toggle-grid" checked>
+            </div>
+        </div>
+        
+        <div class="settings-section">
+            <h3>Data</h3>
+            <div class="button-group">
+                <button id="export-terrain">Export</button>
+                <button id="import-terrain">Import</button>
+            </div>
+            <input type="file" id="import-file-input" style="display:none" accept=".json">
+        </div>
 
-        <h3>Sun & Shadows</h3>
-        <div class="control-group">
-            <label for="toggle-shadows">Enable Shadows</label>
-            <input type="checkbox" id="toggle-shadows" checked>
-        </div>
-        <div class="control-group">
-            <label for="sun-elevation">Sun Elevation</label>
-            <input type="range" id="sun-elevation" min="0" max="90" value="45" step="1">
-        </div>
-        <div class="control-group">
-            <label for="sun-azimuth">Sun Azimuth</label>
-            <input type="range" id="sun-azimuth" min="0" max="360" value="135" step="1">
-        </div>
-        <div class="control-group">
-            <label for="sky-turbidity">Sky Turbidity</label>
-            <input type="range" id="sky-turbidity" min="1" max="20" value="10" step="0.1">
-        </div>
-        <div class="control-group">
-            <label for="sky-rayleigh">Sky Rayleigh</label>
-            <input type="range" id="sky-rayleigh" min="0" max="10" value="3" step="0.1">
-        </div>
-        <div class="control-group">
-            <label for="shadow-map-size">Shadow Map Size</label>
-            <select id="shadow-map-size">
-                <option value="512">512</option>
-                <option value="1024">1024</option>
-                <option value="2048" selected>2048</option>
-                <option value="4096">4096</option>
-                <option value="8192">8192</option>
-            </select>
-        </div>
-        <button id="add-test-object">Add Test Object</button>
-        <button id="clear-test-objects">Clear Test Objects</button>
+        <button id="generate-terrain" class="primary-action">Apply & Regenerate</button>
 
-        <h3>Import / Export</h3>
-        <button id="export-terrain">Export Terrain (JSON)</button>
-        <button id="import-terrain">Import Terrain (JSON)</button>
-        <input type="file" id="import-file-input" style="display:none" accept=".json">
-
-        <h3>Grid</h3>
-        <div class="control-group">
-            <label for="grid-cell-size">Grid Cell Size (m)</label>
-            <input type="number" id="grid-cell-size" value="1000" step="100">
-        </div>
-        <div class="control-group">
-            <label for="toggle-grid">Show Grid</label>
-            <input type="checkbox" id="toggle-grid" checked>
-        </div>
     </div>
     <script type="module" src="main.js"></script>
 <script defer src="https://static.cloudflareinsights.com/beacon.min.js/v8c78df7c7c0f484497ecbca7046644da1771523124516" integrity="sha512-8DS7rgIrAmghBFwoOTujcf6D9rXvH8xm8JQ1Ja01h9QX8EzXldiszufYa4IFfKdLUKTTrnSFXLDkUEOTrZQ8Qg==" data-cf-beacon='{"version":"2024.11.0","token":"4c6229722a6346bc8eb5cb0e5eae5d41","server_timing":{"name":{"cfCacheStatus":true,"cfEdge":true,"cfExtPri":true,"cfL4":true,"cfOrigin":true,"cfSpeedBrain":true},"location_startswith":null}}' crossorigin="anonymous"></script>
