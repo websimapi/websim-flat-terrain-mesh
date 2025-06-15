@@ -1,10 +1,8 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
-import { Sky } from 'three/addons/objects/Sky.js';
 
-let scene, camera, renderer, controls, localGridHelper, groundPlane, directionalLight, sky;
+let scene, camera, renderer, controls, localGridHelper, groundPlane;
 let raycaster, mouse;
-const testObjects = [];
 
 function generateTerrain(widthM, depthM) {
     // Cleanup old terrain
@@ -21,7 +19,6 @@ function generateTerrain(widthM, depthM) {
     });
     groundPlane = new THREE.Mesh(groundGeometry, groundMaterial);
     groundPlane.rotation.x = -Math.PI / 2;
-    groundPlane.receiveShadow = true;
     scene.add(groundPlane);
 
     // Update camera, controls, fog based on new terrain size
@@ -31,103 +28,8 @@ function generateTerrain(widthM, depthM) {
 
     // controls.maxDistance = maxDim * 1.5; // Now user-controlled via debug menu
     
-    // The Sky object now provides the atmospheric effect, so we don't need explicit fog.
-    // scene.fog.near = maxDim * 0.1;
-    // scene.fog.far = maxDim * 1.5;
-}
-
-function updateShadowCamera(widthM, depthM) {
-    if (!directionalLight) return;
-    const shadowCamSize = Math.max(widthM, depthM) / 2;
-    directionalLight.shadow.camera.left = -shadowCamSize;
-    directionalLight.shadow.camera.right = shadowCamSize;
-    directionalLight.shadow.camera.top = shadowCamSize;
-    directionalLight.shadow.camera.bottom = -shadowCamSize;
-    directionalLight.shadow.camera.near = 1;
-    directionalLight.shadow.camera.far = 300000;
-    directionalLight.shadow.camera.updateProjectionMatrix();
-}
-
-function updateSunPosition(elevation, azimuth) {
-    if (!directionalLight) return;
-
-    const elevationRad = THREE.MathUtils.degToRad(elevation);
-    const azimuthRad = THREE.MathUtils.degToRad(azimuth);
-    
-    const sunDistance = 200000;
-
-    directionalLight.position.x = sunDistance * Math.cos(elevationRad) * Math.sin(azimuthRad);
-    directionalLight.position.y = sunDistance * Math.sin(elevationRad);
-    directionalLight.position.z = sunDistance * Math.cos(elevationRad) * Math.cos(azimuthRad);
-
-    directionalLight.target.position.set(0, 0, 0);
-    scene.add(directionalLight.target);
-}
-
-function updateSkyAndSun() {
-    const elevation = parseFloat(document.getElementById('sun-elevation').value);
-    const azimuth = parseFloat(document.getElementById('sun-azimuth').value);
-    const turbidity = parseFloat(document.getElementById('sky-turbidity').value);
-    const rayleigh = parseFloat(document.getElementById('sky-rayleigh').value);
-
-    if (!directionalLight || !sky) return;
-
-    const phi = THREE.MathUtils.degToRad(90 - elevation);
-    const theta = THREE.MathUtils.degToRad(azimuth);
-    
-    const sun = new THREE.Vector3();
-    sun.setFromSphericalCoords(1, phi, theta);
-
-    sky.material.uniforms['sunPosition'].value.copy(sun);
-    sky.material.uniforms['turbidity'].value = turbidity;
-    sky.material.uniforms['rayleigh'].value = rayleigh;
-    
-    // Position the directional light to match the sun
-    const sunDistance = 200000;
-    directionalLight.position.copy(sun).multiplyScalar(sunDistance);
-    directionalLight.target.position.set(0, 0, 0);
-    scene.add(directionalLight.target);
-    
-    // Adjust light intensity based on sun elevation for a more natural look
-    const sunY = Math.max(0, sun.y); // sun.y is sin(elevation). It goes from 0 to 1 as elevation goes from 0 to 90.
-    const intensityFactor = Math.sqrt(sunY); // Use a sqrt curve for a nice fade
-    
-    directionalLight.intensity = 1.0 * intensityFactor;
-    const ambientLight = scene.getObjectByName("ambientLight");
-    if(ambientLight) {
-       ambientLight.intensity = 0.2 + 0.5 * intensityFactor; // Base ambient light + some from sun
-    }
-
-    // A more subtle exposure adjustment
-    renderer.toneMappingExposure = 0.3 + 0.4 * intensityFactor;
-}
-
-function addTestObject() {
-    const geometry = new THREE.BoxGeometry(500, 2000, 500);
-    const material = new THREE.MeshStandardMaterial({ color: 0xcccccc });
-    const cube = new THREE.Mesh(geometry, material);
-
-    cube.castShadow = true;
-    cube.receiveShadow = true;
-
-    const width = parseFloat(document.getElementById('terrain-width').value) * 1000;
-    const depth = parseFloat(document.getElementById('terrain-depth').value) * 1000;
-    
-    cube.position.x = (Math.random() - 0.5) * width * 0.8;
-    cube.position.z = (Math.random() - 0.5) * depth * 0.8;
-    cube.position.y = 1000; // Half of its height
-
-    scene.add(cube);
-    testObjects.push(cube);
-}
-
-function clearTestObjects() {
-    testObjects.forEach(obj => {
-        scene.remove(obj);
-        obj.geometry.dispose();
-        obj.material.dispose();
-    });
-    testObjects.length = 0; // Clear the array
+    scene.fog.near = maxDim * 0.1;
+    scene.fog.far = maxDim * 1.5;
 }
 
 function updateLocalGrid(cellSizeM, divisions = 20) {
@@ -148,9 +50,8 @@ function updateLocalGrid(cellSizeM, divisions = 20) {
 function init() {
     // Scene
     scene = new THREE.Scene();
-    // These are replaced by the Sky object for a more realistic look
-    // scene.background = new THREE.Color(0x87ceeb); // Sky blue background
-    // scene.fog = new THREE.Fog(0x87ceeb, 50000, 300000);
+    scene.background = new THREE.Color(0x87ceeb); // Sky blue background
+    scene.fog = new THREE.Fog(0x87ceeb, 50000, 300000);
 
     // Camera
     camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 100, 400000);
@@ -159,10 +60,6 @@ function init() {
     // Renderer
     renderer = new THREE.WebGLRenderer({ antialias: true });
     renderer.setSize(window.innerWidth, window.innerHeight);
-    renderer.shadowMap.enabled = true;
-    renderer.shadowMap.type = THREE.PCFSoftShadowMap;
-    renderer.toneMapping = THREE.ACESFilmicToneMapping;
-    renderer.toneMappingExposure = 0.5;
     document.body.appendChild(renderer.domElement);
 
     // Controls
@@ -179,20 +76,12 @@ function init() {
     mouse = new THREE.Vector2();
 
     // Lighting
-    const ambientLight = new THREE.AmbientLight(0xffffff, 0.4);
-    ambientLight.name = "ambientLight";
+    const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
     scene.add(ambientLight);
 
-    directionalLight = new THREE.DirectionalLight(0xffffff, 1.0);
-    directionalLight.castShadow = true;
-    directionalLight.shadow.mapSize.width = 2048;
-    directionalLight.shadow.mapSize.height = 2048;
+    const directionalLight = new THREE.DirectionalLight(0xffffff, 1.0);
+    directionalLight.position.set(130000, 100000, 80000); // Positioned to give some angle
     scene.add(directionalLight);
-
-    // Sky
-    sky = new Sky();
-    sky.scale.setScalar(1000000); // Large enough to contain any terrain
-    scene.add(sky);
 
     // Event Listeners
     window.addEventListener('resize', onWindowResize, false);
@@ -203,14 +92,6 @@ function init() {
     const toggleGridCheckbox = document.getElementById('toggle-grid');
     const generateBtn = document.getElementById('generate-terrain');
     const gridCellSizeInput = document.getElementById('grid-cell-size');
-    const toggleShadowsCheckbox = document.getElementById('toggle-shadows');
-    const sunElevationSlider = document.getElementById('sun-elevation');
-    const sunAzimuthSlider = document.getElementById('sun-azimuth');
-    const skyTurbiditySlider = document.getElementById('sky-turbidity');
-    const skyRayleighSlider = document.getElementById('sky-rayleigh');
-    const shadowMapSizeSelect = document.getElementById('shadow-map-size');
-    const addTestObjectBtn = document.getElementById('add-test-object');
-    const clearTestObjectsBtn = document.getElementById('clear-test-objects');
 
     window.addEventListener('keydown', (event) => {
         // Use 'Backquote' which is the key for ` and ~ on US keyboards.
@@ -256,7 +137,6 @@ function init() {
 
             generateTerrain(widthM, depthM);
             updateLocalGrid(cellSize);
-            updateShadowCamera(widthM, depthM);
 
             controls.minDistance = minZoom;
             controls.maxDistance = maxZoom;
@@ -266,57 +146,6 @@ function init() {
             controls.target.set(0, 0, 0);
             controls.update();
         });
-    }
-
-    if (toggleShadowsCheckbox) {
-        toggleShadowsCheckbox.addEventListener('change', (event) => {
-            renderer.shadowMap.enabled = event.target.checked;
-            scene.traverse(child => {
-                if (child.material) {
-                    child.material.needsUpdate = true;
-                }
-            });
-        });
-    }
-
-    const handleSunUpdate = () => {
-        const elevation = parseFloat(sunElevationSlider.value);
-        const azimuth = parseFloat(sunAzimuthSlider.value);
-        updateSunPosition(elevation, azimuth);
-    };
-
-    if (sunElevationSlider) {
-        sunElevationSlider.addEventListener('input', updateSkyAndSun);
-    }
-    if (sunAzimuthSlider) {
-        sunAzimuthSlider.addEventListener('input', updateSkyAndSun);
-    }
-    if (skyTurbiditySlider) {
-        skyTurbiditySlider.addEventListener('input', updateSkyAndSun);
-    }
-    if (skyRayleighSlider) {
-        skyRayleighSlider.addEventListener('input', updateSkyAndSun);
-    }
-
-    if (shadowMapSizeSelect) {
-        shadowMapSizeSelect.addEventListener('change', (event) => {
-            const size = parseInt(event.target.value, 10);
-            directionalLight.shadow.mapSize.width = size;
-            directionalLight.shadow.mapSize.height = size;
-            // Force shadow map recreation by disposing the old one
-            if (directionalLight.shadow.map) {
-                directionalLight.shadow.map.dispose();
-                directionalLight.shadow.map = null;
-            }
-        });
-    }
-    
-    if(addTestObjectBtn) {
-        addTestObjectBtn.addEventListener('click', addTestObject);
-    }
-
-    if(clearTestObjectsBtn) {
-        clearTestObjectsBtn.addEventListener('click', clearTestObjects);
     }
 
     // Import/Export functionality
@@ -333,12 +162,6 @@ function init() {
                 maxZoom: document.getElementById('max-zoom').value,
                 gridCellSize: document.getElementById('grid-cell-size').value,
                 showGrid: document.getElementById('toggle-grid').checked,
-                shadowsEnabled: document.getElementById('toggle-shadows').checked,
-                sunElevation: document.getElementById('sun-elevation').value,
-                sunAzimuth: document.getElementById('sun-azimuth').value,
-                skyTurbidity: document.getElementById('sky-turbidity').value,
-                skyRayleigh: document.getElementById('sky-rayleigh').value,
-                shadowMapSize: document.getElementById('shadow-map-size').value,
                 cameraPosition: camera.position.toArray(),
                 cameraTarget: controls.target.toArray()
             };
@@ -382,18 +205,6 @@ function init() {
                     document.getElementById('max-zoom').value = settings.maxZoom ?? '400000';
                     document.getElementById('grid-cell-size').value = settings.gridCellSize ?? '1000';
                     document.getElementById('toggle-grid').checked = settings.showGrid ?? true;
-                    
-                    document.getElementById('toggle-shadows').checked = settings.shadowsEnabled ?? true;
-                    document.getElementById('sun-elevation').value = settings.sunElevation ?? '45';
-                    document.getElementById('sun-azimuth').value = settings.sunAzimuth ?? '135';
-                    document.getElementById('sky-turbidity').value = settings.skyTurbidity ?? '10';
-                    document.getElementById('sky-rayleigh').value = settings.skyRayleigh ?? '3';
-                    document.getElementById('shadow-map-size').value = settings.shadowMapSize ?? '2048';
-
-                    // Manually trigger events to apply settings
-                    toggleShadowsCheckbox.dispatchEvent(new Event('change'));
-                    updateSkyAndSun();
-                    shadowMapSizeSelect.dispatchEvent(new Event('change'));
 
                     // Trigger regeneration with new settings
                     generateBtn.click();
@@ -418,8 +229,6 @@ function init() {
         });
     }
 
-    // Initial setup
-    updateSkyAndSun();
     // Initial terrain generation
     generateBtn.click();
 
