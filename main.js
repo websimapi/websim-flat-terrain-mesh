@@ -96,6 +96,18 @@ function init() {
     const toggleGridCheckbox = document.getElementById('toggle-grid');
     const generateBtn = document.getElementById('generate-terrain');
     const gridCellSizeInput = document.getElementById('grid-cell-size');
+    const gridRenderDistanceInput = document.getElementById('grid-render-distance');
+
+    function handleGridSettingsChange() {
+        if (!gridCellSizeInput || !gridRenderDistanceInput) return;
+        const cellSize = parseFloat(gridCellSizeInput.value);
+        const renderDistance = parseFloat(gridRenderDistanceInput.value);
+        
+        if (!isNaN(cellSize) && cellSize > 0 && !isNaN(renderDistance) && renderDistance > 0) {
+            const divisions = Math.max(2, Math.round(renderDistance / cellSize));
+            updateLocalGrid(cellSize, divisions);
+        }
+    }
 
     window.addEventListener('keydown', (event) => {
         // Use 'Backquote' which is the key for ` and ~ on US keyboards.
@@ -106,12 +118,11 @@ function init() {
     });
 
     if (gridCellSizeInput) {
-        gridCellSizeInput.addEventListener('change', () => {
-            const cellSize = parseFloat(gridCellSizeInput.value);
-            if (!isNaN(cellSize) && cellSize > 0) {
-                updateLocalGrid(cellSize);
-            }
-        });
+        gridCellSizeInput.addEventListener('change', handleGridSettingsChange);
+    }
+    
+    if (gridRenderDistanceInput) {
+        gridRenderDistanceInput.addEventListener('change', handleGridSettingsChange);
     }
 
     if (toggleGridCheckbox) {
@@ -125,11 +136,12 @@ function init() {
             const width = parseFloat(document.getElementById('terrain-width').value);
             const depth = parseFloat(document.getElementById('terrain-depth').value);
             const cellSize = parseFloat(document.getElementById('grid-cell-size').value);
+            const renderDistance = parseFloat(document.getElementById('grid-render-distance').value);
             const minZoom = parseFloat(document.getElementById('min-zoom').value);
             const maxZoom = parseFloat(document.getElementById('max-zoom').value);
 
-            if (isNaN(width) || isNaN(depth) || isNaN(cellSize) || width <= 0 || depth <= 0 || cellSize <= 0 || isNaN(minZoom) || isNaN(maxZoom) || minZoom <= 0 || maxZoom <= 0 || minZoom >= maxZoom) {
-                alert("Please enter valid positive numbers for terrain dimensions and zoom. Min zoom must be a positive number and less than max zoom.");
+            if (isNaN(width) || isNaN(depth) || isNaN(cellSize) || isNaN(renderDistance) || width <= 0 || depth <= 0 || cellSize <= 0 || renderDistance <= 0 || isNaN(minZoom) || isNaN(maxZoom) || minZoom <= 0 || maxZoom <= 0 || minZoom >= maxZoom) {
+                alert("Please enter valid positive numbers for terrain dimensions, zoom, and grid settings. Min zoom must be a positive number and less than max zoom.");
                 return;
             }
 
@@ -140,7 +152,9 @@ function init() {
             const depthM = depth * 1000;
 
             generateTerrain(widthM, depthM);
-            updateLocalGrid(cellSize);
+
+            const divisions = Math.max(2, Math.round(renderDistance / cellSize));
+            updateLocalGrid(cellSize, divisions);
 
             controls.minDistance = minZoom;
             controls.maxDistance = maxZoom;
@@ -165,6 +179,7 @@ function init() {
                 minZoom: document.getElementById('min-zoom').value,
                 maxZoom: document.getElementById('max-zoom').value,
                 gridCellSize: document.getElementById('grid-cell-size').value,
+                gridRenderDistance: document.getElementById('grid-render-distance').value,
                 showGrid: document.getElementById('toggle-grid').checked,
                 cameraPosition: camera.position.toArray(),
                 cameraTarget: controls.target.toArray()
@@ -208,6 +223,7 @@ function init() {
                     document.getElementById('min-zoom').value = settings.minZoom ?? '10';
                     document.getElementById('max-zoom').value = settings.maxZoom ?? '400000';
                     document.getElementById('grid-cell-size').value = settings.gridCellSize ?? '1000';
+                    document.getElementById('grid-render-distance').value = settings.gridRenderDistance ?? '20000';
                     document.getElementById('toggle-grid').checked = settings.showGrid ?? true;
 
                     // Trigger regeneration with new settings
