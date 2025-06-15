@@ -9,7 +9,8 @@
         {
             "imports": {
                 "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
-                "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+                "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/",
+                "three/addons/objects/Sky.js": "https://unpkg.com/three@0.160.0/examples/jsm/objects/Sky.js"
             }
         }
     </script>
@@ -52,6 +53,14 @@
         <div class="control-group">
             <label for="sun-azimuth">Sun Azimuth</label>
             <input type="range" id="sun-azimuth" min="0" max="360" value="135" step="1">
+        </div>
+        <div class="control-group">
+            <label for="sky-turbidity">Sky Turbidity</label>
+            <input type="range" id="sky-turbidity" min="1" max="20" value="10" step="0.1">
+        </div>
+        <div class="control-group">
+            <label for="sky-rayleigh">Sky Rayleigh</label>
+            <input type="range" id="sky-rayleigh" min="0" max="10" value="3" step="0.1">
         </div>
         <div class="control-group">
             <label for="shadow-map-size">Shadow Map Size</label>
