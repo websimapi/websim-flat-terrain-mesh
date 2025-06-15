@@ -1,110 +1,9 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 
-let scene, camera, renderer, controls, localGridHelper, groundPlane;
+let scene, camera, renderer, controls, localGridHelper, groundPlane, directionalLight;
 let raycaster, mouse;
-let sun, sunLight, ambientLight;
-let timeOfDay = 12; // 0-24 hours
-let sunCycleSpeed = 0;
-let autoSunCycle = false;
-let sunIntensity = 1;
-
-function createSun() {
-    // Create sun geometry and material
-    const sunGeometry = new THREE.SphereGeometry(5000, 32, 32);
-    const sunMaterial = new THREE.MeshBasicMaterial({
-        color: 0xffffff,
-        emissive: 0xffff00,
-        emissiveIntensity: 0.8
-    });
-    
-    sun = new THREE.Mesh(sunGeometry, sunMaterial);
-    scene.add(sun);
-    
-    // Create sun light
-    sunLight = new THREE.DirectionalLight(0xffffff, sunIntensity);
-    sunLight.castShadow = true;
-    sunLight.shadow.mapSize.width = 2048;
-    sunLight.shadow.mapSize.height = 2048;
-    scene.add(sunLight);
-    
-    updateSunPosition();
-}
-
-function updateSunPosition() {
-    if (!sun || !sunLight) return;
-    
-    // Convert time to angle (0-24 hours to 0-360 degrees)
-    const angle = (timeOfDay / 24) * Math.PI * 2 - Math.PI / 2; // Start at sunrise
-    const sunDistance = 200000;
-    
-    // Calculate sun position
-    const sunX = Math.cos(angle) * sunDistance;
-    const sunY = Math.sin(angle) * sunDistance;
-    const sunZ = 0;
-    
-    sun.position.set(sunX, sunY, sunZ);
-    sunLight.position.copy(sun.position);
-    sunLight.target.position.set(0, 0, 0);
-    
-    // Update sun appearance based on time
-    const dayIntensity = Math.max(0, Math.sin(angle + Math.PI / 2));
-    const sunColor = getSunColor(timeOfDay);
-    const skyColor = getSkyColor(timeOfDay);
-    
-    sun.material.color.setHex(sunColor);
-    sun.material.emissive.setHex(sunColor);
-    sun.material.emissiveIntensity = 0.8 * dayIntensity;
-    
-    sunLight.intensity = sunIntensity * dayIntensity;
-    sunLight.color.setHex(sunColor);
-    
-    // Update ambient light (check if it exists first)
-    if (ambientLight) {
-        const ambientIntensity = Math.max(0.1, dayIntensity * 0.4);
-        ambientLight.intensity = ambientIntensity;
-        ambientLight.color.setHex(skyColor);
-    }
-    
-    // Update sky color (check if scene and fog exist first)
-    if (scene) {
-        scene.background.setHex(skyColor);
-        if (scene.fog) {
-            scene.fog.color.setHex(skyColor);
-        }
-    }
-}
-
-function getSunColor(time) {
-    // Sunrise/sunset colors
-    if (time < 6 || time > 18) {
-        return 0x4169e1; // Royal blue for night
-    } else if (time < 8 || time > 16) {
-        return 0xff6347; // Tomato for sunrise/sunset
-    } else {
-        return 0xffffff; // White for day
-    }
-}
-
-function getSkyColor(time) {
-    // Sky color based on time
-    if (time < 5 || time > 19) {
-        return 0x000033; // Dark blue for night
-    } else if (time < 7 || time > 17) {
-        return 0xff7f50; // Coral for sunrise/sunset
-    } else if (time < 9 || time > 15) {
-        return 0x87ceeb; // Sky blue for morning/evening
-    } else {
-        return 0x87ceeb; // Sky blue for day
-    }
-}
-
-function updateTimeDisplay() {
-    const hours = Math.floor(timeOfDay);
-    const minutes = Math.floor((timeOfDay - hours) * 60);
-    const timeString = `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`;
-    document.getElementById('time-display').textContent = timeString;
-}
+const testObjects = [];
 
 function generateTerrain(widthM, depthM) {
     // Cleanup old terrain
@@ -121,6 +20,7 @@ function generateTerrain(widthM, depthM) {
     });
     groundPlane = new THREE.Mesh(groundGeometry, groundMaterial);
     groundPlane.rotation.x = -Math.PI / 2;
+    groundPlane.receiveShadow = true;
     scene.add(groundPlane);
 
     // Update camera, controls, fog based on new terrain size
@@ -132,6 +32,62 @@ function generateTerrain(widthM, depthM) {
     
     scene.fog.near = maxDim * 0.1;
     scene.fog.far = maxDim * 1.5;
+}
+
+function updateShadowCamera(widthM, depthM) {
+    if (!directionalLight) return;
+    const shadowCamSize = Math.max(widthM, depthM) / 2;
+    directionalLight.shadow.camera.left = -shadowCamSize;
+    directionalLight.shadow.camera.right = shadowCamSize;
+    directionalLight.shadow.camera.top = shadowCamSize;
+    directionalLight.shadow.camera.bottom = -shadowCamSize;
+    directionalLight.shadow.camera.near = 1;
+    directionalLight.shadow.camera.far = 300000;
+    directionalLight.shadow.camera.updateProjectionMatrix();
+}
+
+function updateSunPosition(elevation, azimuth) {
+    if (!directionalLight) return;
+
+    const elevationRad = THREE.MathUtils.degToRad(elevation);
+    const azimuthRad = THREE.MathUtils.degToRad(azimuth);
+    
+    const sunDistance = 200000;
+
+    directionalLight.position.x = sunDistance * Math.cos(elevationRad) * Math.sin(azimuthRad);
+    directionalLight.position.y = sunDistance * Math.sin(elevationRad);
+    directionalLight.position.z = sunDistance * Math.cos(elevationRad) * Math.cos(azimuthRad);
+
+    directionalLight.target.position.set(0, 0, 0);
+    scene.add(directionalLight.target);
+}
+
+function addTestObject() {
+    const geometry = new THREE.BoxGeometry(500, 2000, 500);
+    const material = new THREE.MeshStandardMaterial({ color: 0xcccccc });
+    const cube = new THREE.Mesh(geometry, material);
+
+    cube.castShadow = true;
+    cube.receiveShadow = true;
+
+    const width = parseFloat(document.getElementById('terrain-width').value) * 1000;
+    const depth = parseFloat(document.getElementById('terrain-depth').value) * 1000;
+    
+    cube.position.x = (Math.random() - 0.5) * width * 0.8;
+    cube.position.z = (Math.random() - 0.5) * depth * 0.8;
+    cube.position.y = 1000; // Half of its height
+
+    scene.add(cube);
+    testObjects.push(cube);
+}
+
+function clearTestObjects() {
+    testObjects.forEach(obj => {
+        scene.remove(obj);
+        obj.geometry.dispose();
+        obj.material.dispose();
+    });
+    testObjects.length = 0; // Clear the array
 }
 
 function updateLocalGrid(cellSizeM, divisions = 20) {
@@ -157,6 +113,7 @@ function init() {
 
     // Camera
     camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 100, 400000);
+    // camera.position.set(0, 20000, 40000); // Position will be set dynamically
 
     // Renderer
     renderer = new THREE.WebGLRenderer({ antialias: true });
@@ -179,11 +136,14 @@ function init() {
     mouse = new THREE.Vector2();
 
     // Lighting
-    ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
+    const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
     scene.add(ambientLight);
 
-    // Create sun and sun lighting
-    createSun();
+    directionalLight = new THREE.DirectionalLight(0xffffff, 1.0);
+    directionalLight.castShadow = true;
+    directionalLight.shadow.mapSize.width = 2048;
+    directionalLight.shadow.mapSize.height = 2048;
+    scene.add(directionalLight);
 
     // Event Listeners
     window.addEventListener('resize', onWindowResize, false);
@@ -194,47 +154,20 @@ function init() {
     const toggleGridCheckbox = document.getElementById('toggle-grid');
     const generateBtn = document.getElementById('generate-terrain');
     const gridCellSizeInput = document.getElementById('grid-cell-size');
-    
-    // Sun controls
-    const timeOfDaySlider = document.getElementById('time-of-day');
-    const sunCycleSpeedInput = document.getElementById('sun-cycle-speed');
-    const autoCycleCheckbox = document.getElementById('auto-cycle');
-    const sunIntensitySlider = document.getElementById('sun-intensity');
+    const toggleShadowsCheckbox = document.getElementById('toggle-shadows');
+    const sunElevationSlider = document.getElementById('sun-elevation');
+    const sunAzimuthSlider = document.getElementById('sun-azimuth');
+    const shadowMapSizeSelect = document.getElementById('shadow-map-size');
+    const addTestObjectBtn = document.getElementById('add-test-object');
+    const clearTestObjectsBtn = document.getElementById('clear-test-objects');
 
     window.addEventListener('keydown', (event) => {
+        // Use 'Backquote' which is the key for ` and ~ on US keyboards.
         if (event.code === 'Backquote') {
             event.preventDefault();
             adminMenu.classList.toggle('hidden');
         }
     });
-
-    // Sun control event listeners
-    if (timeOfDaySlider) {
-        timeOfDaySlider.addEventListener('input', (event) => {
-            timeOfDay = parseFloat(event.target.value);
-            updateSunPosition();
-            updateTimeDisplay();
-        });
-    }
-
-    if (sunCycleSpeedInput) {
-        sunCycleSpeedInput.addEventListener('change', (event) => {
-            sunCycleSpeed = parseFloat(event.target.value);
-        });
-    }
-
-    if (autoCycleCheckbox) {
-        autoCycleCheckbox.addEventListener('change', (event) => {
-            autoSunCycle = event.target.checked;
-        });
-    }
-
-    if (sunIntensitySlider) {
-        sunIntensitySlider.addEventListener('input', (event) => {
-            sunIntensity = parseFloat(event.target.value);
-            updateSunPosition();
-        });
-    }
 
     if (gridCellSizeInput) {
         gridCellSizeInput.addEventListener('change', () => {
@@ -272,6 +205,7 @@ function init() {
 
             generateTerrain(widthM, depthM);
             updateLocalGrid(cellSize);
+            updateShadowCamera(widthM, depthM);
 
             controls.minDistance = minZoom;
             controls.maxDistance = maxZoom;
@@ -281,6 +215,51 @@ function init() {
             controls.target.set(0, 0, 0);
             controls.update();
         });
+    }
+
+    if (toggleShadowsCheckbox) {
+        toggleShadowsCheckbox.addEventListener('change', (event) => {
+            renderer.shadowMap.enabled = event.target.checked;
+            scene.traverse(child => {
+                if (child.material) {
+                    child.material.needsUpdate = true;
+                }
+            });
+        });
+    }
+
+    const handleSunUpdate = () => {
+        const elevation = parseFloat(sunElevationSlider.value);
+        const azimuth = parseFloat(sunAzimuthSlider.value);
+        updateSunPosition(elevation, azimuth);
+    };
+
+    if (sunElevationSlider) {
+        sunElevationSlider.addEventListener('input', handleSunUpdate);
+    }
+    if (sunAzimuthSlider) {
+        sunAzimuthSlider.addEventListener('input', handleSunUpdate);
+    }
+
+    if (shadowMapSizeSelect) {
+        shadowMapSizeSelect.addEventListener('change', (event) => {
+            const size = parseInt(event.target.value, 10);
+            directionalLight.shadow.mapSize.width = size;
+            directionalLight.shadow.mapSize.height = size;
+            // Force shadow map recreation by disposing the old one
+            if (directionalLight.shadow.map) {
+                directionalLight.shadow.map.dispose();
+                directionalLight.shadow.map = null;
+            }
+        });
+    }
+    
+    if(addTestObjectBtn) {
+        addTestObjectBtn.addEventListener('click', addTestObject);
+    }
+
+    if(clearTestObjectsBtn) {
+        clearTestObjectsBtn.addEventListener('click', clearTestObjects);
     }
 
     // Import/Export functionality
@@ -297,6 +276,10 @@ function init() {
                 maxZoom: document.getElementById('max-zoom').value,
                 gridCellSize: document.getElementById('grid-cell-size').value,
                 showGrid: document.getElementById('toggle-grid').checked,
+                shadowsEnabled: document.getElementById('toggle-shadows').checked,
+                sunElevation: document.getElementById('sun-elevation').value,
+                sunAzimuth: document.getElementById('sun-azimuth').value,
+                shadowMapSize: document.getElementById('shadow-map-size').value,
                 cameraPosition: camera.position.toArray(),
                 cameraTarget: controls.target.toArray()
             };
@@ -340,6 +323,16 @@ function init() {
                     document.getElementById('max-zoom').value = settings.maxZoom ?? '400000';
                     document.getElementById('grid-cell-size').value = settings.gridCellSize ?? '1000';
                     document.getElementById('toggle-grid').checked = settings.showGrid ?? true;
+                    
+                    document.getElementById('toggle-shadows').checked = settings.shadowsEnabled ?? true;
+                    document.getElementById('sun-elevation').value = settings.sunElevation ?? '45';
+                    document.getElementById('sun-azimuth').value = settings.sunAzimuth ?? '135';
+                    document.getElementById('shadow-map-size').value = settings.shadowMapSize ?? '2048';
+
+                    // Manually trigger events to apply settings
+                    toggleShadowsCheckbox.dispatchEvent(new Event('change'));
+                    handleSunUpdate();
+                    shadowMapSizeSelect.dispatchEvent(new Event('change'));
 
                     // Trigger regeneration with new settings
                     generateBtn.click();
@@ -364,11 +357,10 @@ function init() {
         });
     }
 
+    // Initial setup
+    handleSunUpdate();
     // Initial terrain generation
     generateBtn.click();
-    
-    // Initialize time display
-    updateTimeDisplay();
 
     // Start animation loop
     animate();
@@ -389,16 +381,6 @@ function onWindowResize() {
 
 function animate() {
     requestAnimationFrame(animate);
-
-    // Update sun cycle
-    if (autoSunCycle && sunCycleSpeed > 0) {
-        timeOfDay += sunCycleSpeed * 0.016; // Approximate 60fps
-        if (timeOfDay >= 24) timeOfDay = 0;
-        
-        document.getElementById('time-of-day').value = timeOfDay;
-        updateSunPosition();
-        updateTimeDisplay();
-    }
 
     // Update local grid position based on mouse
     const showGrid = document.getElementById('toggle-grid').checked;

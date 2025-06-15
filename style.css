@@ -77,20 +77,15 @@ canvas {
 }
 
 .control-group input[type="range"] {
-    width: 80px;
+    width: 120px;
+}
+
+.control-group select {
     background-color: #333;
+    color: white;
+    border: 1px solid #555;
     border-radius: 3px;
-}
-
-.control-group span {
-    font-size: 0.9em;
-    color: #ccc;
-    min-width: 40px;
-    text-align: right;
-}
-
-.control-group input[type="checkbox"] {
-    margin-left: auto;
+    padding: 2px 5px;
 }
 
 #admin-menu button {
