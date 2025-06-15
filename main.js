@@ -45,9 +45,11 @@ function updateLocalGrid(cellSizeM, divisions = 20) {
     // Prevent z-fighting and rendering glitches by telling the grid to render on top.
     localGridHelper.material.depthTest = false;
     localGridHelper.material.depthWrite = false;
-    localGridHelper.renderOrder = 1;
+    localGridHelper.material.fog = false;
+    localGridHelper.material.transparent = true;
+    localGridHelper.renderOrder = 1; // Render grid on top of other objects
 
-    localGridHelper.position.y = 2; // Position slightly more above the ground plane to ensure visibility
+    localGridHelper.position.y = 10; // Position more above the ground plane to ensure visibility
     localGridHelper.visible = false; // Initially hidden
    
     scene.add(localGridHelper);
